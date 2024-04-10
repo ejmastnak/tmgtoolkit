@@ -2,8 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from decimal import Decimal
 import math
-from constants import PlottingConstants
 
+from .constants import PlottingConstants
 
 def plot_time_series(ax, y, t=None, **kwargs):
     """Generic function for plotting time series.

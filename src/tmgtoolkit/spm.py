@@ -1,8 +1,9 @@
 from collections import namedtuple
 import numpy as np
 import spm1d
-from constants import SpmConstants, NamedTupleTypes
-from time_series import _idx_to_time, _interpolate_extremum
+
+from .constants import SpmConstants, NamedTupleTypes
+from .time_series import _idx_to_time, _interpolate_extremum
 
 def get_spm_t_statistic(group1, group2, mitigate_iir_filter_artefact=True):
     """Computes SPM t-test statistic for the inputted data.

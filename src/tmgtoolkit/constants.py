@@ -1,19 +1,6 @@
 from pathlib import Path
 from collections import namedtuple
 
-class DataConstants:
-    DATA_DIR = Path("../../data")
-    SAMPLE_DATA = {
-            'xlsx': {
-                'sample': DATA_DIR.joinpath("mm.xlsx"),
-                },
-            'csv': {
-                'triangle': DATA_DIR.joinpath("triangle.csv"),
-                'tmg': DATA_DIR.joinpath("tmg.csv"),
-                'spm': DATA_DIR.joinpath("spm.csv"),
-                }
-            }
-
 class IoConstants:
     TMG_EXCEL_MAGIC_VALUES = {
             # Index of first row with TMG data

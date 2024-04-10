@@ -1,5 +1,6 @@
-from constants import IoConstants
 import pandas as pd
+
+from .constants import IoConstants
 
 def tmg_excel_to_ndarray(fname, skiprows=None, nrows=None, skipcols=None, ncols=None):
     """Extracts information in a TMG measurement Excel file.

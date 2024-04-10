@@ -5,7 +5,8 @@ import numpy as np
 from scipy.signal import find_peaks
 from scipy.stats import ttest_rel
 from scipy.interpolate import lagrange
-from constants import TimeSeriesConstants, NamedTupleTypes
+
+from .constants import TimeSeriesConstants, NamedTupleTypes
 
 def get_tmg_parameters_of_time_series(y, t=None,
                                       ignore_maxima_with_idx_less_than=None,
