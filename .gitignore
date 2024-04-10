@@ -1,4 +1,6 @@
-data
-docs
-venv
+dist/
+data/
+docs/
+venv/
+src/tmgtoolkit.egg-info/
 TODO.md
