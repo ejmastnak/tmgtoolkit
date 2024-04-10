@@ -1,0 +1,9 @@
+let $VIFM_CONTEXT = expand('%d')
+
+nmap ;hh :cd $VIFM_CONTEXT<CR>
+nmap ;vv :goto $VIFM_CONTEXT/.vifm-context.vifm<CR>
+nmap ;tt :goto $VIFM_CONTEXT/TODO.md<CR>
+
+nmap ;ss :cd $VIFM_CONTEXT/src<CR>
+nmap ;ad :cd $VIFM_CONTEXT/docs<CR>
+nmap ;dd :cd $VIFM_CONTEXT/data<CR>
