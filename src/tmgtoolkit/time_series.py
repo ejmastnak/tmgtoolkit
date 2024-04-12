@@ -371,7 +371,7 @@ def _idx_to_time(idx, t):
         continuous.
     """
     if idx.is_integer():
-        return t[int(idx)]
+        return float(t[int(idx)])
 
     idx_floor = math.floor(idx)
     idx_ceil = math.ceil(idx)
