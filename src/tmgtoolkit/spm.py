@@ -131,7 +131,6 @@ def get_spm_t_inference(spm_ts, t=None, alpha=0.05, two_tailed=True):
                     line at the significance threshold
                     `spm_t_inference.threshold` from the cluster's `start_time`
                     to the cluster's `end_time`.
-        - `num_clusters` (int): the number of supra-threshold clusters.
         Access fields with e.g. `spm_t_inference.p` for the value of `p`.
     """
     spm_ti = spm_ts.spm_t.inference(alpha=alpha, two_tailed=two_tailed, interp=True)
