@@ -66,6 +66,7 @@ def get_spm_t_statistic(group1, group2, mitigate_iir_filter_artefact=True):
     """
     if mitigate_iir_filter_artefact:
         group1, group2 = _mitigate_iir_filter_artefact(group1, group2)
+    group1, group2 = _equalize_columns(group1, group2)
     spm_t = spm1d.stats.ttest_paired(group1.T, group2.T)
     return NamedTupleTypes.SpmTStatistic(t_statistic=spm_t.z, spm_t=spm_t)
 
@@ -191,6 +192,56 @@ def _mitigate_iir_filter_artefact(group1, group2):
     else:
         group1 = group1 - np.mean(mean1 - mean2)
     return (group1, group2)
+
+
+def _equalize_columns(group1, group2):
+    """Ensures inputted 2D arrays have the same number of columns.
+
+    Context: 2D arrays inputted to `spm1d`'s analysis functions require that
+    the arrays have the same number of rows and columns. This function
+    equalizes the number of columns in the inputted data, if necessary, so that
+    the data can be analyzed with `spm1d`.
+
+    The function works by computing the mean of the array with fewer columns,
+    and repeatedly appending this mean column to the array with fewer columns
+    until the number of columns in `group1` and `group2` are equal.
+
+    Parameters
+    ----------
+    group1 : ndarray
+        2D Numpy array holding at least two time series, as for
+        `get_spm_t_statistic`.
+    group2 : ndarray
+        2D Numpy array holding at least two time series, as for
+        `get_spm_t_statistic`.
+
+    Returns
+    -------
+    group_tuple : tuple
+        Tuple holding equalized versions of `group1` and `group2`; fields are
+        0. `group1` (ndarray)
+        1. `group2` (ndarray)
+    """
+    rows = group1.shape[0]
+    cols1 = group1.shape[1]
+    cols2 = group2.shape[1]
+    if cols1 == cols2:
+        return (group1, group2)
+
+    elif cols1 < cols2:
+        padded_group1 = np.zeros((rows, cols2))
+        padded_group1[:, 0:cols1] = group1
+        mean1 = np.mean(group1, axis=1)
+        for c in range(cols1, cols2):
+            padded_group1[:, c] = mean1
+        return (padded_group1, group2)
+    elif cols2 < cols1:
+        padded_group2 = np.zeros((rows, cols1))
+        padded_group2[:, 0:cols2] = group2
+        mean2 = np.mean(group2, axis=1)
+        for c in range(cols2, cols1):
+            padded_group2[:, c] = mean2
+        return (group1, padded_group2)
 
 
 def _get_spm_clusters(spm_ti, t):
