@@ -105,6 +105,7 @@ class NamedTupleTypes:
         'clusters'
         ])
     SpmCluster = namedtuple('SpmCluster', [
+        'idx',
         'p',
         'start_time',
         'end_time',

@@ -112,6 +112,7 @@ def get_spm_t_inference(spm_ts, t=None, alpha=0.05, two_tailed=True):
               supra-threshold cluster, or an empty list if the inference did
               not produce supra-threshold clusters. Each SpmCluster namedtuple
               has the following fields:
+              - `idx` (int): the cluster's 0-based index within `clusters`
               - `p` (float): the cluster's p value.
               - `start_time` (float): time at which the cluster begins, in the
                   same units as `t`.
@@ -273,12 +274,12 @@ def _get_spm_clusters(spm_ti, t):
         return []
 
     clusters = []
-    for cluster in spm_ti.clusters:
-        clusters.append(_analyze_spm1d_cluster(cluster, t))
+    for idx, cluster in enumerate(spm_ti.clusters):
+        clusters.append(_analyze_spm1d_cluster(cluster, t, idx))
     return clusters
 
 
-def _analyze_spm1d_cluster(cluster, t):
+def _analyze_spm1d_cluster(cluster, t, idx):
     """Returns an SpmCluster namedtuple summarizing an SPM Cluster object.
 
     Parameters
@@ -290,6 +291,8 @@ def _analyze_spm1d_cluster(cluster, t):
         1D Numpy array holding the time (or other independent variable) values
         on which the SPM t-statistic curve used to compute the inference object
         `spm_ti` is defined. See `get_spm_t_inference` for details.
+    idx : int
+        The cluster's 0-based index within its parent `clusters` list.
 
     Returns
     ----------
@@ -324,7 +327,7 @@ def _analyze_spm1d_cluster(cluster, t):
     centroid_time = _idx_to_time(centroid_idx, t)
     extremum_time = _idx_to_time(extremum_idx, t)
 
-    return NamedTupleTypes.SpmCluster(p=cluster.P, start_time=start_time,
+    return NamedTupleTypes.SpmCluster(idx=idx, p=cluster.P, start_time=start_time,
                                       end_time=end_time,
                                       centroid_time=centroid_time,
                                       centroid=centroid,
