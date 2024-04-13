@@ -37,7 +37,7 @@ def tmg_excel_to_ndarray(fname, skiprows=None, nrows=None, skipcols=None, ncols=
     return pd.read_excel(fname, header=None, skiprows=skiprows, nrows=nrows, usecols=usecols).values
 
 
-def split_data_for_spm(data, numsets, n1, n2):
+def split_data_for_spm(data, numsets, n1, n2, nrows=None):
     """Splits structured inputted data into two groups for analysis with SPM.
 
     Splits the time series in the inputted 2D array `data` into two groups, 1
@@ -72,10 +72,13 @@ def split_data_for_spm(data, numsets, n1, n2):
             2D Numpy array holding group 2 measurements.
 
     """
+    if nrows is None:
+        nrows = data.shape[0]
+
     idxs1 = []
     idxs2 = []
     n = n1 + n2
     for s in range(numsets):
         idxs1.extend(range(s*n, s*n + n1))
         idxs2.extend(range(s*n + n1, (s + 1)*n))
-    return (data[:, idxs1], data[:, idxs2])
+    return (data[:nrows, idxs1], data[:nrows, idxs2])
