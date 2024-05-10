@@ -37,7 +37,7 @@ def tmg_excel_to_ndarray(fname, skiprows=None, nrows=None, skipcols=None, ncols=
     return pd.read_excel(fname, header=None, skiprows=skiprows, nrows=nrows, usecols=usecols).values
 
 
-def split_data_for_spm(data, numsets, n1, n2, nrows=None):
+def split_data_for_spm(data, numsets, n1, n2, nrows=None, split_mode=None):
     """Splits structured inputted data into two groups for analysis with SPM.
 
     Splits the time series in the inputted 2D array `data` into two groups, 1
@@ -61,6 +61,12 @@ def split_data_for_spm(data, numsets, n1, n2, nrows=None):
         Number of group 1 time series in each set.
     n2 : int
         Number of group 2 time series in each set.
+    nrows : int, optional
+        If provided, return only the first `nrows` in `data`. The default is to
+        return all rows in `data`.
+    split_mode : int, optional
+        An symbolic constant from `constants.IoConstants` controlling how to
+        split the measurements in `data`.
 
     Returns
     -------
@@ -74,7 +80,32 @@ def split_data_for_spm(data, numsets, n1, n2, nrows=None):
     """
     if nrows is None:
         nrows = data.shape[0]
+    if split_mode is None:
+        split_mode = IoConstants.SPM_ANALYSIS_MODES['TRADITIONAL']
 
+    # Sanitize possible out-of-bounds user input
+    nrows = min(nrows, data.shape[0])
+
+    if split_mode == IoConstants.SPM_ANALYSIS_MODES['TRADITIONAL']:
+        return _split_data_traditional(data, numsets, n1, n2, nrows)
+    elif split_mode == IoConstants.SPM_ANALYSIS_MODES['FROZEN_BASELINE']:
+        pass
+    elif split_mode == IoConstants.SPM_ANALYSIS_MODES['POTENTIATION_CREEP']:
+        pass
+    else:
+        raise ValueError("Unrecognized split_mode ({}) passed to `split_data_for_spm`.".format(split_mode))
+
+
+def _split_data_traditional(data, numsets, n1, n2, nrows):
+    """Called by `split_data_for_spm` for TRADITIONAL SPM analysis.
+
+    Used for SPM analysis comparing measurements in group 1 to measurements in
+    group 2.
+
+    Group 1: G1S1, G1S2, G1S3, G1S4, etc.
+    Group 2: G2S1, G2S2, G2S3, G2S4, etc.
+
+    """
     idxs1 = []
     idxs2 = []
     n = n1 + n2

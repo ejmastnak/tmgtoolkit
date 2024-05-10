@@ -10,6 +10,34 @@ class IoConstants:
             # Data points in a TMG measurement
             'data_nrows': 1000,
             }
+    SPM_ANALYSIS_MODES = {
+            # Compares measurements in group 1 to measurements in group 2.
+            # Group 1: G1S1, G1S2, G1S3, G1S4, etc.
+            # Group 2: G2S1, G2S2, G2S3, G2S4, etc.
+            'TRADITIONAL': 1,
+
+            # Compares measurements from first set of group 1 to group 2
+            # measurements. Applicable when group 1 represents baseline
+            # measurements in a baseline-potentiated measurement protocol. Used
+            # to avoid influence of lingering potentiation in baseline
+            # measurements of later sets due to e.g. insufficient rest period
+            # between conditioning exercise of one set and the baseline
+            # measurements of the next set.
+            # Group 1: G1S1 measurements only
+            # Group 2: G2S1, G2S2, G2S3, G2S4, etc.
+            'FROZEN_BASELINE': 2,
+
+            # Compares measurements from first set of group 1 to later group 1
+            # measurements. A complement to `FROZEN_BASELINE`, again used when
+            # group 1 represents baseline measurements in a
+            # baseline-potentiated measurement protocol. Used to detect
+            # "potentiation creep" in baseline measurements of later sets, i.e.
+            # if measurements in later baseline sets are faster and
+            # higher-amplitude relative to first baseline set.
+            # Group 1: G1S1 measurements only
+            # Group 2: G1S2, G1S3, G1S4, etc.
+            'POTENTIATION_CREEP': 3,
+            }
 
 class TimeSeriesConstants:
     TMG_PARAMS = {
