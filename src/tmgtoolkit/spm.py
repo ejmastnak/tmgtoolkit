@@ -5,7 +5,7 @@ import spm1d
 from .constants import SpmConstants, NamedTupleTypes
 from .time_series import _idx_to_time, _interpolate_extremum
 
-def get_spm_t_statistic(group1, group2, mitigate_iir_filter_artefact=True):
+def get_spm_t_statistic(group1, group2, mitigate_iir_filter_artefact=True, swap_groups=False):
     """Computes SPM t-test statistic for the inputted data.
 
     Returns an SpmTStatistic namedtuple containing the 1D SPM t-test statistic
@@ -28,10 +28,14 @@ def get_spm_t_statistic(group1, group2, mitigate_iir_filter_artefact=True):
         may be different from the number of time series in `group1`, but the
         length of the time series in `group1` and `group2` should be equal
         (i.e. `group1` and `group2` should have the same number of rows).
-    mitigate_iir_filter_artefact : bool
+    mitigate_iir_filter_artefact : bool, optional
         If True, passes data through `_mitigate_iir_filter_artefact` before
         computing the SPM t-statistic. See `_mitigate_iir_filter_artefact` for
         details.
+    swap_groups : bool, optional
+        Controls the order in which `group1` and `group2` are passed to spm1d's
+        paired t-test function. This can be useful e.g. if client wants to
+        manipulate which group is treated as "potentiated".
 
     Pre-Conditions
     --------------
@@ -72,7 +76,10 @@ def get_spm_t_statistic(group1, group2, mitigate_iir_filter_artefact=True):
 
     if mitigate_iir_filter_artefact:
         group1, group2 = _mitigate_iir_filter_artefact(group1, group2)
-    spm_t = spm1d.stats.ttest_paired(group1.T, group2.T)
+    if swap_groups:
+        spm_t = spm1d.stats.ttest_paired(group2.T, group1.T)
+    else:
+        spm_t = spm1d.stats.ttest_paired(group1.T, group2.T)
     return NamedTupleTypes.SpmTStatistic(t_statistic=spm_t.z, spm_t=spm_t)
 
 
