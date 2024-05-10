@@ -1,3 +1,9 @@
+"""
+Functions for reading data from and writing data to measurement files, and for
+preprocessing of data read from measurement files in preparation for passing
+the data to analysis functions.
+"""
+
 import pandas as pd
 
 from .constants import IoConstants
@@ -99,11 +105,20 @@ def split_data_for_spm(data, numsets, n1, n2, nrows=None, split_mode=None):
 def _split_data_traditional(data, numsets, n1, n2, nrows):
     """Called by `split_data_for_spm` for TRADITIONAL SPM analysis.
 
-    Used for SPM analysis comparing measurements in group 1 to measurements in
-    group 2.
+    Used for SPM analysis comparing time series in group 1 to time series in
+    group 2. Splits inputted `data` into:
 
-    Group 1: G1S1, G1S2, G1S3, G1S4, etc.
-    Group 2: G2S1, G2S2, G2S3, G2S4, etc.
+        Group 1: G1S1, G1S2, G1S3, G1S4, etc.
+        Group 2: G2S1, G2S2, G2S3, G2S4, etc.
+
+    Parameters
+    ----------
+    See `split_data_for_spm`.
+
+    Returns
+    -------
+    data_tuple : tuple
+        Tuple holding group 1 and group 2 series, as for `split_data_for_spm`.
 
     """
     idxs1 = []
@@ -112,4 +127,52 @@ def _split_data_traditional(data, numsets, n1, n2, nrows):
     for s in range(numsets):
         idxs1.extend(range(s*n, s*n + n1))
         idxs2.extend(range(s*n + n1, (s + 1)*n))
-    return (data[:nrows, idxs1], data[:nrows, idxs2])
+    return _equalize_columns(data[:nrows, idxs1], data[:nrows, idxs2])
+
+
+def _equalize_columns(group1, group2):
+    """Ensures inputted 2D arrays have the same number of columns.
+
+    Context: 2D arrays inputted to `spm1d`'s analysis functions require that
+    the arrays have the same number of rows and columns. This function
+    equalizes the number of columns in the inputted data, if necessary, so that
+    the data can be analyzed with `spm1d`.
+
+    The function works by computing the mean of the array with fewer columns,
+    and repeatedly appending this mean column to the array with fewer columns
+    until the number of columns in `group1` and `group2` are equal.
+
+    Parameters
+    ----------
+    group1 : ndarray
+        2D Numpy array holding at least two time series.
+    group2 : ndarray
+        2D Numpy array holding at least two time series.
+
+    Returns
+    -------
+    group_tuple : tuple
+        Tuple holding equalized versions of `group1` and `group2`; fields are
+        0. `group1` (ndarray)
+        1. `group2` (ndarray)
+    """
+    rows = group1.shape[0]
+    cols1 = group1.shape[1]
+    cols2 = group2.shape[1]
+    if cols1 == cols2:
+        return (group1, group2)
+
+    elif cols1 < cols2:
+        padded_group1 = np.zeros((rows, cols2))
+        padded_group1[:, 0:cols1] = group1
+        mean1 = np.mean(group1, axis=1)
+        for c in range(cols1, cols2):
+            padded_group1[:, c] = mean1
+        return (padded_group1, group2)
+    elif cols2 < cols1:
+        padded_group2 = np.zeros((rows, cols1))
+        padded_group2[:, 0:cols2] = group2
+        mean2 = np.mean(group2, axis=1)
+        for c in range(cols2, cols1):
+            padded_group2[:, c] = mean2
+        return (group1, padded_group2)
