@@ -4,6 +4,7 @@ preprocessing of data read from measurement files in preparation for passing
 the data to analysis functions.
 """
 
+import numpy as np
 import pandas as pd
 
 from .constants import IoConstants
@@ -51,8 +52,8 @@ def split_data_for_spm(data, numsets, n1, n2, nrows=None, split_mode=None):
 
     The function assumes `data` has a well-defined structure, namely that the
     time series in `data` are divided into `numsets` sets, where each set
-    consists of `n1` consecutive time series in group 1 followed by `n2`
-    consecutive time series in group 2.
+    consists of `n1` consecutive time series in Group 1 followed by `n2`
+    consecutive time series in Group 2.
 
     Parameters
     ----------
@@ -64,9 +65,9 @@ def split_data_for_spm(data, numsets, n1, n2, nrows=None, split_mode=None):
     numsets : int
         Number of sets in `data`.
     n1 : int
-        Number of group 1 time series in each set.
+        Number of Group 1 time series in each set.
     n2 : int
-        Number of group 2 time series in each set.
+        Number of Group 2 time series in each set.
     nrows : int, optional
         If provided, return only the first `nrows` in `data`. The default is to
         return all rows in `data`.
@@ -77,11 +78,17 @@ def split_data_for_spm(data, numsets, n1, n2, nrows=None, split_mode=None):
     Returns
     -------
     data_tuple : tuple
-        Tuple holding group 1 and group 2 series. Fields are
+        Tuple holding Group 1 and Group 2 series. Fields are
         0 (group1) : ndarray
-            2D Numpy array holding group 1 measurements.
+            2D Numpy array holding Group 1 measurements.
         1 (group2) : ndarray
-            2D Numpy array holding group 2 measurements.
+            2D Numpy array holding Group 2 measurements.
+
+        Note: the arrays `group1` and `group2` are guaranteed to be returned
+        with the same shape. If the inputted data does not split into an equal
+        number of Group 1 and Group 2 time series under the given parameters,
+        then the group with fewer time series is padded with additional time
+        series until `group1` and `group2` have the same shape.
 
     """
     if nrows is None:
@@ -95,9 +102,9 @@ def split_data_for_spm(data, numsets, n1, n2, nrows=None, split_mode=None):
     if split_mode == IoConstants.SPM_ANALYSIS_MODES['TRADITIONAL']:
         return _split_data_traditional(data, numsets, n1, n2, nrows)
     elif split_mode == IoConstants.SPM_ANALYSIS_MODES['FROZEN_BASELINE']:
-        pass
+        return _split_data_frozen_baseline(data, numsets, n1, n2, nrows)
     elif split_mode == IoConstants.SPM_ANALYSIS_MODES['POTENTIATION_CREEP']:
-        pass
+        return _split_data_potentiation_creep(data, numsets, n1, n2, nrows)
     else:
         raise ValueError("Unrecognized split_mode ({}) passed to `split_data_for_spm`.".format(split_mode))
 
@@ -105,8 +112,8 @@ def split_data_for_spm(data, numsets, n1, n2, nrows=None, split_mode=None):
 def _split_data_traditional(data, numsets, n1, n2, nrows):
     """Called by `split_data_for_spm` for TRADITIONAL SPM analysis.
 
-    Used for SPM analysis comparing time series in group 1 to time series in
-    group 2. Splits inputted `data` into:
+    Used for SPM analysis comparing time series in Group 1 to time series in
+    Group 2. Splits inputted `data` into:
 
         Group 1: G1S1, G1S2, G1S3, G1S4, etc.
         Group 2: G2S1, G2S2, G2S3, G2S4, etc.
@@ -118,7 +125,7 @@ def _split_data_traditional(data, numsets, n1, n2, nrows):
     Returns
     -------
     data_tuple : tuple
-        Tuple holding group 1 and group 2 series, as for `split_data_for_spm`.
+        Tuple holding Group 1 and Group 2 series, as for `split_data_for_spm`.
 
     """
     idxs1 = []
@@ -128,6 +135,129 @@ def _split_data_traditional(data, numsets, n1, n2, nrows):
         idxs1.extend(range(s*n, s*n + n1))
         idxs2.extend(range(s*n + n1, (s + 1)*n))
     return _equalize_columns(data[:nrows, idxs1], data[:nrows, idxs2])
+
+
+def _split_data_frozen_baseline(data, numsets, n1, n2, nrows):
+    """Called by `split_data_for_spm` for FROZEN_BASELINE SPM analysis.
+
+    Used for SPM analysis comparing time series in first set of Group 1 to time
+    series in Group 2. Splits inputted `data` into:
+
+        Group 1: G1S1 measurements only
+        Group 2: G2S1, G2S2, G2S3, G2S4, etc.
+
+    Splitting behavior: equalize columns, then add noise to all Group 1
+    measurements beyond the original measurements in G1S1. The noise added to
+    each row of Group 1 is drawn from a normal distribution with mean zero and
+    the standard deviation of the corresponding row of Group 2 measurements.
+
+    Motivation for adding noise: a hack, of sorts, to counter the risk of zero
+    variance across rows of Group 1 measurements that would result from
+    directly making copies of Group 1 when `n1 == 1`.
+
+    I use a different normal distribution for each row (point in time)
+    to mimic the behavior of SPM, which also computes the variance of each
+    point in time separately.
+
+    Parameters
+    ----------
+    See `split_data_for_spm`.
+
+    Returns
+    -------
+    data_tuple : tuple
+        Tuple holding Group 1 and Group 2 series, as for `split_data_for_spm`.
+
+    """
+    idxs1 = []
+    idxs2 = []
+    n = n1 + n2
+
+    idxs1.extend(range(n1))  # measurements in first set only
+    for s in range(numsets):
+        idxs2.extend(range(s*n + n1, (s + 1)*n))
+    group1, group2 = _equalize_columns(data[:nrows, idxs1], data[:nrows, idxs2])
+
+    # Apply noise to each Group 1 measurement beyond set 1. The assumption here
+    # is that in FROZEN_BASELINE mode columns would have been added to Group 1
+    # to match the number of columns in Group 2, but the `if` allows for the
+    # edge case where Group 1 originally had more columns than Group 2.
+    noise_cols = group2.shape[1] - n1
+    if noise_cols <= 0:
+        return (group1, group2) 
+
+    mu = 0
+    sigma = np.std(group2, ddof=1, axis=1)
+    noise = np.zeros((group1.shape[0], noise_cols))
+    for i in range(noise.shape[0]):
+        noise[i] = np.random.default_rng().normal(mu, sigma[i], noise_cols)
+
+    # Scale down noise to a small fraction of group1 peak-to-peak amplitude
+    noise *= IoConstants.NOISE_SCALE * (np.max(group1) - np.min(group1))
+    group1[:, n1:] += noise
+    return (group1, group2) 
+
+
+def _split_data_potentiation_creep(data, numsets, n1, n2, nrows):
+    """Called by `split_data_for_spm` for POTENTIATION_CREEP SPM analysis.
+
+    Used for SPM analysis comparing time series in first set of Group 1 to
+    later sets of Group 1. Splits inputted `data` into:
+
+        Group 1: G1S1 measurements only
+        Group 2: G1S2, G1S3, G1S4, etc.
+
+    Splitting behavior: equalize columns, then add noise to all Group 1
+    measurements beyond the original measurements in G1S1. The noise added to
+    each row of Group 1 is drawn from a normal distribution with mean zero and
+    the standard deviation of the corresponding row of Group 2 measurements.
+
+    Motivation for adding noise: a hack, of sorts, to counter the risk of zero
+    variance across rows of Group 1 measurements that would result from
+    directly making copies of Group 1 when `n1 == 1`.
+
+    I use a different normal distribution for each row (point in time)
+    to mimic the behavior of SPM, which also computes the variance of each
+    point in time separately.
+
+    Parameters
+    ----------
+    See `split_data_for_spm`.
+
+    Returns
+    -------
+    data_tuple : tuple
+        Tuple holding Group 1 and Group 2 series, as for `split_data_for_spm`.
+
+    """
+    idxs1 = []
+    idxs2 = []
+    n = n1 + n2
+
+    idxs1.extend(range(n1))  # measurements in first set only
+    for s in range(1, numsets):  # later sets of Group 1
+        idxs2.extend(range(s*n, s*n + n1))
+    group1, group2 = _equalize_columns(data[:nrows, idxs1], data[:nrows, idxs2])
+
+    # Apply noise to each Group 1 measurement beyond set 1. The assumption here
+    # is that the original Group 1 will have had multiple measurement sets
+    # beyond set 1, but the `if` allows for the edge case where the original
+    # Group 1 originally had 1 or 2 measurement sets, in which case `group1`
+    # and `group2` would have the same number of columns.
+    noise_cols = group2.shape[1] - n1
+    if noise_cols <= 0:
+        return (group1, group2) 
+
+    mu = 0
+    sigma = np.std(group2, ddof=1, axis=1)
+    noise = np.zeros((group1.shape[0], noise_cols))
+    for i in range(noise.shape[0]):
+        noise[i] = np.random.default_rng().normal(mu, sigma[i], noise_cols)
+
+    # Scale down noise to a small fraction of group1 peak-to-peak amplitude
+    noise *= IoConstants.NOISE_SCALE * (np.max(group1) - np.min(group1))
+    group1[:, n1:] += noise
+    return (group1, group2) 
 
 
 def _equalize_columns(group1, group2):

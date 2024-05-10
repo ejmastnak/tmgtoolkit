@@ -38,6 +38,8 @@ class IoConstants:
             # Group 2: G1S2, G1S3, G1S4, etc.
             'POTENTIATION_CREEP': 3,
             }
+    # Controls amount of noise added to padded time series when equalizing columns
+    NOISE_SCALE = 0.001
 
 class TimeSeriesConstants:
     TMG_PARAMS = {
