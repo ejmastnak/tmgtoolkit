@@ -94,23 +94,23 @@ def split_data_for_spm(data, numsets, n1, n2, nrows=None, split_mode=None):
     if nrows is None:
         nrows = data.shape[0]
     if split_mode is None:
-        split_mode = IoConstants.SPM_ANALYSIS_MODES['TRADITIONAL']
+        split_mode = IoConstants.SPM_ANALYSIS_MODES['traditional']
 
     # Sanitize possible out-of-bounds user input
     nrows = min(nrows, data.shape[0])
 
-    if split_mode == IoConstants.SPM_ANALYSIS_MODES['TRADITIONAL']:
+    if split_mode == IoConstants.SPM_ANALYSIS_MODES['traditional']:
         return _split_data_traditional(data, numsets, n1, n2, nrows)
-    elif split_mode == IoConstants.SPM_ANALYSIS_MODES['FROZEN_BASELINE']:
+    elif split_mode == IoConstants.SPM_ANALYSIS_MODES['frozen_baseline']:
         return _split_data_frozen_baseline(data, numsets, n1, n2, nrows)
-    elif split_mode == IoConstants.SPM_ANALYSIS_MODES['POTENTIATION_CREEP']:
+    elif split_mode == IoConstants.SPM_ANALYSIS_MODES['potentiation_creep']:
         return _split_data_potentiation_creep(data, numsets, n1, n2, nrows)
     else:
         raise ValueError("Unrecognized split_mode ({}) passed to `split_data_for_spm`.".format(split_mode))
 
 
 def _split_data_traditional(data, numsets, n1, n2, nrows):
-    """Called by `split_data_for_spm` for TRADITIONAL SPM analysis.
+    """Called by `split_data_for_spm` for traditional SPM analysis.
 
     Used for SPM analysis comparing time series in Group 1 to time series in
     Group 2. Splits inputted `data` into:
@@ -138,7 +138,7 @@ def _split_data_traditional(data, numsets, n1, n2, nrows):
 
 
 def _split_data_frozen_baseline(data, numsets, n1, n2, nrows):
-    """Called by `split_data_for_spm` for FROZEN_BASELINE SPM analysis.
+    """Called by `split_data_for_spm` for frozen_baseline SPM analysis.
 
     Used for SPM analysis comparing time series in first set of Group 1 to time
     series in Group 2. Splits inputted `data` into:
@@ -179,7 +179,7 @@ def _split_data_frozen_baseline(data, numsets, n1, n2, nrows):
     group1, group2 = _equalize_columns(data[:nrows, idxs1], data[:nrows, idxs2])
 
     # Apply noise to each Group 1 measurement beyond set 1. The assumption here
-    # is that in FROZEN_BASELINE mode columns would have been added to Group 1
+    # is that in frozen_baseline mode columns would have been added to Group 1
     # to match the number of columns in Group 2, but the `if` allows for the
     # edge case where Group 1 originally had more columns than Group 2.
     noise_cols = group2.shape[1] - n1
@@ -199,7 +199,7 @@ def _split_data_frozen_baseline(data, numsets, n1, n2, nrows):
 
 
 def _split_data_potentiation_creep(data, numsets, n1, n2, nrows):
-    """Called by `split_data_for_spm` for POTENTIATION_CREEP SPM analysis.
+    """Called by `split_data_for_spm` for potentiation_creep SPM analysis.
 
     Used for SPM analysis comparing time series in first set of Group 1 to
     later sets of Group 1. Splits inputted `data` into:
