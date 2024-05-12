@@ -370,6 +370,8 @@ def _idx_to_time(idx, t):
         to `idx`; loosely, an estimate of the value t(idx) if `t` were
         continuous.
     """
+    assert 0 <= idx < t.shape[0], "Index {} is out of bounds for time array with shape {}.".format(idx, t.shape)
+
     if idx.is_integer():
         return float(t[int(idx)])
 
