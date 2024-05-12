@@ -44,7 +44,7 @@ def tmg_excel_to_ndarray(fname, skiprows=None, nrows=None, skipcols=None, ncols=
     return pd.read_excel(fname, header=None, skiprows=skiprows, nrows=nrows, usecols=usecols).values
 
 
-def split_data_for_spm(data, numsets, n1, n2, nrows=None, split_mode=None):
+def split_data_for_spm(data, numsets, n1, n2, skiprows=0, nrows=None, split_mode=None):
     """Splits structured inputted data into two groups for analysis with SPM.
 
     Splits the time series in the inputted 2D array `data` into two groups, 1
@@ -68,9 +68,11 @@ def split_data_for_spm(data, numsets, n1, n2, nrows=None, split_mode=None):
         Number of Group 1 time series in each set.
     n2 : int
         Number of Group 2 time series in each set.
+    skiprows : int, optional
+        Skips the first `skiprows` in `data`.
     nrows : int, optional
-        If provided, return only the first `nrows` in `data`. The default is to
-        return all rows in `data`.
+        If provided, return only the first `nrows` after `skiprows` in `data`.
+        The default is to return all rows in `data`.
     split_mode : int, optional
         An symbolic constant from `constants.IoConstants` controlling how to
         split the measurements in `data`.
@@ -91,25 +93,29 @@ def split_data_for_spm(data, numsets, n1, n2, nrows=None, split_mode=None):
         series until `group1` and `group2` have the same shape.
 
     """
-    if nrows is None:
-        nrows = data.shape[0]
+    assert len(data.shape) == 2, "Inputted data must be two-dimensional array."
+    assert skiprows >= 0, "The number of rows to skip must be non-negative."
+    assert skiprows < data.shape[0], "The number of rows to skip ({}) exceeds the number of data rows ({}).".format(skiprows, data.shape[0])
+    if nrows is not None:
+        assert nrows > 0, "The requested number of rows to return must be greater than zero."
+        assert nrows < data.shape[0] - skiprows, "The requested number of rows to return exceeds the number of data rows ({})".format(nrows, data.shape[0]) + ("and rows to skip ({}).".format(skiprows) if skiprows > 0 else ".")
+    else:
+        nrows = data.shape[0] - skiprows
+
     if split_mode is None:
         split_mode = IoConstants.SPM_ANALYSIS_MODES['traditional']
 
-    # Sanitize possible out-of-bounds user input
-    nrows = min(nrows, data.shape[0])
-
     if split_mode == IoConstants.SPM_ANALYSIS_MODES['traditional']:
-        return _split_data_traditional(data, numsets, n1, n2, nrows)
+        return _split_data_traditional(data, numsets, n1, n2, skiprows, nrows)
     elif split_mode == IoConstants.SPM_ANALYSIS_MODES['frozen_baseline']:
-        return _split_data_frozen_baseline(data, numsets, n1, n2, nrows)
+        return _split_data_frozen_baseline(data, numsets, n1, n2, skiprows, nrows)
     elif split_mode == IoConstants.SPM_ANALYSIS_MODES['potentiation_creep']:
-        return _split_data_potentiation_creep(data, numsets, n1, n2, nrows)
+        return _split_data_potentiation_creep(data, numsets, n1, n2, skiprows, nrows)
     else:
         raise ValueError("Unrecognized split_mode ({}) passed to `split_data_for_spm`.".format(split_mode))
 
 
-def _split_data_traditional(data, numsets, n1, n2, nrows):
+def _split_data_traditional(data, numsets, n1, n2, skiprows, nrows):
     """Called by `split_data_for_spm` for traditional SPM analysis.
 
     Used for SPM analysis comparing time series in Group 1 to time series in
@@ -134,10 +140,10 @@ def _split_data_traditional(data, numsets, n1, n2, nrows):
     for s in range(numsets):
         idxs1.extend(range(s*n, s*n + n1))
         idxs2.extend(range(s*n + n1, (s + 1)*n))
-    return _equalize_columns(data[:nrows, idxs1], data[:nrows, idxs2])
+    return _equalize_columns(data[skiprows:skiprows + nrows, idxs1], data[skiprows:skiprows + nrows, idxs2])
 
 
-def _split_data_frozen_baseline(data, numsets, n1, n2, nrows):
+def _split_data_frozen_baseline(data, numsets, n1, n2, skiprows, nrows):
     """Called by `split_data_for_spm` for frozen_baseline SPM analysis.
 
     Used for SPM analysis comparing time series in first set of Group 1 to time
@@ -176,7 +182,7 @@ def _split_data_frozen_baseline(data, numsets, n1, n2, nrows):
     idxs1.extend(range(n1))  # measurements in first set only
     for s in range(numsets):
         idxs2.extend(range(s*n + n1, (s + 1)*n))
-    group1, group2 = _equalize_columns(data[:nrows, idxs1], data[:nrows, idxs2])
+    group1, group2 = _equalize_columns(data[skiprows:skiprows + nrows, idxs1], data[skiprows:skiprows + nrows, idxs2])
 
     # Apply noise to each Group 1 measurement beyond set 1. The assumption here
     # is that in frozen_baseline mode columns would have been added to Group 1
@@ -198,7 +204,7 @@ def _split_data_frozen_baseline(data, numsets, n1, n2, nrows):
     return (group1, group2) 
 
 
-def _split_data_potentiation_creep(data, numsets, n1, n2, nrows):
+def _split_data_potentiation_creep(data, numsets, n1, n2, skiprows, nrows):
     """Called by `split_data_for_spm` for potentiation_creep SPM analysis.
 
     Used for SPM analysis comparing time series in first set of Group 1 to
@@ -237,7 +243,7 @@ def _split_data_potentiation_creep(data, numsets, n1, n2, nrows):
     idxs1.extend(range(n1))  # measurements in first set only
     for s in range(1, numsets):  # later sets of Group 1
         idxs2.extend(range(s*n, s*n + n1))
-    group1, group2 = _equalize_columns(data[:nrows, idxs1], data[:nrows, idxs2])
+    group1, group2 = _equalize_columns(data[skiprows:skiprows + nrows, idxs1], data[skiprows:skiprows + nrows, idxs2])
 
     # Apply noise to each Group 1 measurement beyond set 1. The assumption here
     # is that the original Group 1 will have had multiple measurement sets
