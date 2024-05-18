@@ -10,33 +10,63 @@ class IoConstants:
             # Data points in a TMG measurement
             'data_nrows': 1000,
             }
-    SPM_ANALYSIS_MODES = {
-            # Compares measurements in group 1 to measurements in group 2.
-            # Group 1: G1S1, G1S2, G1S3, G1S4, etc.
-            # Group 2: G2S1, G2S2, G2S3, G2S4, etc.
-            'traditional': 1,
+    SPM_SPLIT_MODES = {
+            # Compares each set's group 1 measurements to corresponding group 2
+            # measurements. Split returns array of tuples
+            # `[(group1_1, group2_1), ..., (group1_N, group2_N)]` where N is
+            # the number of measurement sets and:
+            # - `group1_1` consists of all measurements in G1S1.
+            # - `group2_1` consists of all measurements in G2S1.
+            # - `group1_N` consists of all measurements in G1SN.
+            # - `group2_N` consists of all measurements in G2SN.
+            'parallel': 1,
 
-            # Compares measurements from first set of group 1 to group 2
-            # measurements. Applicable when group 1 represents baseline
-            # measurements in a baseline-potentiated measurement protocol. Used
-            # to avoid influence of lingering potentiation in baseline
-            # measurements of later sets due to e.g. insufficient rest period
-            # between conditioning exercise of one set and the baseline
-            # measurements of the next set.
-            # Group 1: G1S1 measurements only
-            # Group 2: G2S1, G2S2, G2S3, G2S4, etc.
-            'frozen_baseline': 2,
+            # Compares all group 1 measurements to all group 2 measurements.
+            # Split returns tuple `(group1, group2)`, where:
+            # - `group1` consists of all measurements in G1S1, G1S2, ..., G1SN.
+            # - `group2` consists of all measurements in G1S1, G1S2, ..., G1SN.
+            'parallel_all': 2,
 
-            # Compares measurements from first set of group 1 to later group 1
-            # measurements. A complement to `frozen_baseline`, again used when
-            # group 1 represents baseline measurements in a
-            # baseline-potentiated measurement protocol. Used to detect
-            # "potentiation creep" in baseline measurements of later sets, i.e.
-            # if measurements in later baseline sets are faster and
-            # higher-amplitude relative to first baseline set.
-            # Group 1: G1S1 measurements only
-            # Group 2: G1S2, G1S3, G1S4, etc.
-            'potentiation_creep': 3,
+            # Compares the first set's group 1 measurements to group 2
+            # measurements in sets 1, 2, ..., N. Split returns array of tuples
+            # `[(group1_1, group2_1), ..., (group1_1, group2_N)]` where N is
+            # the number of measurement sets and:
+            # - `group1_1` consists of all measurements in G1S1.
+            # - `group2_1` consists of all measurements in G2S1.
+            # - `group2_N` consists of all measurements in G2SN.
+            # Note that each tuple's "group 1" is always set 1's measurements.
+            # Use: to avoid potentiation creep in baseline measurements of
+            # later sets when e.g. insufficient rest period between sets causes
+            # potentiation creep.
+            'fixed_baseline': 3,
+
+            # Compares first set's group 1 measurements to all group 2
+            # measurements. Split returns tuple `(group1, group2)`, where:
+            # - `group1` consists of all measurements in G1S1.
+            # - `group2` consists of all measurements in G2S1, G2S2, ..., G2SN, etc.
+            'fixed_baseline_all': 4,
+
+            # Compares first set's group 1 measurements to *group 1*
+            # measurements from sets 2, 3, ..., N. Split returns array of
+            # tuples `[(group1_1, group1_2), ..., (group1_1, group1_N)]`, where
+            # N is the number of measurement sets and:
+            # - `group1_1` consists of all measurements in G1S1.
+            # - `group1_2` consists of all measurements in G1S1.
+            # - `group1_N` consists of all measurements in G1SN.
+            # Note that measurements are taken only from group 1.
+            # Use: to detect "potentiation creep" in baseline measurements of
+            # later sets, i.e. when baseline measurements in later sets are
+            # faster and higher-amplitude relative to first baseline set when
+            # e.g. insufficient rest period between sets causes potentiation
+            # creep.
+            'potentiation_creep': 5,
+
+            # Compares first set's group 1 measurements to all group 1
+            # measurements in sets 2, 3, ..., N.
+            # Split returns tuple`(group1, group2)`, where:
+            # - `group1` consists of all measurements in G1S1.
+            # - `group2` consists of all measurements in G1S2, G1S2, ..., G1SN, etc.
+            'potentiation_creep_all': 6,
             }
     # Controls amount of noise added to padded time series when equalizing columns
     NOISE_SCALE = 0.001
