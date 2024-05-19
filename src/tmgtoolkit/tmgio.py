@@ -45,15 +45,24 @@ def tmg_excel_to_ndarray(fname, skiprows=None, nrows=None, skipcols=None, ncols=
 
 
 def split_data_for_spm(data, numsets, n1, n2, skiprows=0, nrows=None, split_mode=None):
-    """Splits structured inputted data into two groups for analysis with SPM.
+    """Splits structured input data into groups for analysis with SPM.
 
-    Splits the time series in the inputted 2D array `data` into two groups, 1
-    and 2, that can then be compared to each other with SPM analysis.
+    Splits the time series in the inputted 2D array `data` into groups that can
+    then be compared to each other with SPM analysis. The function assumes
+    `data` has a well-defined structure, namely that the time series in `data`
+    are divided into `numsets` sets, where each set consists of `n1`
+    consecutive time series in Group 1 followed by `n2` consecutive time series
+    in Group 2.
 
-    The function assumes `data` has a well-defined structure, namely that the
-    time series in `data` are divided into `numsets` sets, where each set
-    consists of `n1` consecutive time series in Group 1 followed by `n2`
-    consecutive time series in Group 2.
+    For conventional split modes splits `data` into an array of tuples
+    `(group1, group2)` tuples, with one tuple for each measurement set in
+    `data`.
+
+    For "all"-type split modes, splits `data` into two 2D arrays stored in a
+    single tuple `(group1, group2)`.
+
+    For documentation of split modes see
+    `constants.IoConstants.SPM_SPLIT_MODES`.
 
     Parameters
     ----------
@@ -79,18 +88,26 @@ def split_data_for_spm(data, numsets, n1, n2, skiprows=0, nrows=None, split_mode
 
     Returns
     -------
+    data_tuples : array
+        Length `numsets` array holding a `(group1, group2)` tuple for each
+        measurement set in `data` (as specified by `numsets`), where `group1`
+        and `group2` are 2D Numpy arrays holding the Group 1 and Group 2
+        measurements, respectively, for each set. This return type is used for
+        conventional split modes.
     data_tuple : tuple
-        Tuple holding Group 1 and Group 2 series. Fields are
+        Tuple `(group1, group2)` holding Group 1 and Group 2 measurements.
+        Fields are
         0 (group1) : ndarray
             2D Numpy array holding Group 1 measurements.
         1 (group2) : ndarray
             2D Numpy array holding Group 2 measurements.
+        This return type is used for "all"-type split modes.
 
-        Note: the arrays `group1` and `group2` are guaranteed to be returned
-        with the same shape. If the inputted data does not split into an equal
-        number of Group 1 and Group 2 time series under the given parameters,
-        then the group with fewer time series is padded with additional time
-        series until `group1` and `group2` have the same shape.
+    Note: the arrays `group1` and `group2` are guaranteed to be returned
+    with the same shape. If the inputted data does not split into an equal
+    number of Group 1 and Group 2 time series under the given parameters,
+    then the group with fewer time series is padded with additional time
+    series until `group1` and `group2` have the same shape.
 
     """
     assert len(data.shape) == 2, "Inputted data must be two-dimensional array."
@@ -116,13 +133,10 @@ def split_data_for_spm(data, numsets, n1, n2, skiprows=0, nrows=None, split_mode
 
 
 def _split_data_parallel_all(data, numsets, n1, n2, skiprows, nrows):
-    """Called by `split_data_for_spm` for parallel SPM analysis.
+    """Handles splitting SPM data for split mode `parallel_all`.
 
-    Used for SPM analysis comparing time series in Group 1 to time series in
-    Group 2. Splits inputted `data` into:
-
-        Group 1: G1S1, G1S2, G1S3, G1S4, etc.
-        Group 2: G2S1, G2S2, G2S3, G2S4, etc.
+    For documentation of split modes see
+    `constants.IoConstants.SPM_SPLIT_MODES`.
 
     Parameters
     ----------
@@ -131,7 +145,7 @@ def _split_data_parallel_all(data, numsets, n1, n2, skiprows, nrows):
     Returns
     -------
     data_tuple : tuple
-        Tuple holding Group 1 and Group 2 series, as for `split_data_for_spm`.
+        Tuple holding Group 1 and Group 2 measurements.
 
     """
     idxs1 = []
@@ -144,26 +158,10 @@ def _split_data_parallel_all(data, numsets, n1, n2, skiprows, nrows):
 
 
 def _split_data_fixed_baseline_all(data, numsets, n1, n2, skiprows, nrows):
-    """Called by `split_data_for_spm` for fixed_baseline SPM analysis.
+    """Handles splitting SPM data for split mode `fixed_baseline_all`.
 
-    Used for SPM analysis comparing time series in first set of Group 1 to time
-    series in Group 2. Splits inputted `data` into:
-
-        Group 1: G1S1 measurements only
-        Group 2: G2S1, G2S2, G2S3, G2S4, etc.
-
-    Splitting behavior: equalize columns, then add noise to all Group 1
-    measurements beyond the original measurements in G1S1. The noise added to
-    each row of Group 1 is drawn from a normal distribution with mean zero and
-    the standard deviation of the corresponding row of Group 2 measurements.
-
-    Motivation for adding noise: a hack, of sorts, to counter the risk of zero
-    variance across rows of Group 1 measurements that would result from
-    directly making copies of Group 1 when `n1 == 1`.
-
-    I use a different normal distribution for each row (point in time)
-    to mimic the behavior of SPM, which also computes the variance of each
-    point in time separately.
+    For documentation of split modes see
+    `constants.IoConstants.SPM_SPLIT_MODES`.
 
     Parameters
     ----------
@@ -172,7 +170,7 @@ def _split_data_fixed_baseline_all(data, numsets, n1, n2, skiprows, nrows):
     Returns
     -------
     data_tuple : tuple
-        Tuple holding Group 1 and Group 2 series, as for `split_data_for_spm`.
+        Tuple holding Group 1 and Group 2 measurements.
 
     """
     idxs1 = []
@@ -205,26 +203,10 @@ def _split_data_fixed_baseline_all(data, numsets, n1, n2, skiprows, nrows):
 
 
 def _split_data_potentiation_creep_all(data, numsets, n1, n2, skiprows, nrows):
-    """Called by `split_data_for_spm` for potentiation_creep SPM analysis.
+    """Handles splitting SPM data for split mode `potentiation_creep_all`.
 
-    Used for SPM analysis comparing time series in first set of Group 1 to
-    later sets of Group 1. Splits inputted `data` into:
-
-        Group 1: G1S1 measurements only
-        Group 2: G1S2, G1S3, G1S4, etc.
-
-    Splitting behavior: equalize columns, then add noise to all Group 1
-    measurements beyond the original measurements in G1S1. The noise added to
-    each row of Group 1 is drawn from a normal distribution with mean zero and
-    the standard deviation of the corresponding row of Group 2 measurements.
-
-    Motivation for adding noise: a hack, of sorts, to counter the risk of zero
-    variance across rows of Group 1 measurements that would result from
-    directly making copies of Group 1 when `n1 == 1`.
-
-    I use a different normal distribution for each row (point in time)
-    to mimic the behavior of SPM, which also computes the variance of each
-    point in time separately.
+    For documentation of split modes see
+    `constants.IoConstants.SPM_SPLIT_MODES`.
 
     Parameters
     ----------
@@ -233,7 +215,7 @@ def _split_data_potentiation_creep_all(data, numsets, n1, n2, skiprows, nrows):
     Returns
     -------
     data_tuple : tuple
-        Tuple holding Group 1 and Group 2 series, as for `split_data_for_spm`.
+        Tuple holding Group 1 and Group 2 measurements.
 
     """
     idxs1 = []
