@@ -94,12 +94,11 @@ def split_data_for_spm(data, numsets, n1, n2, skiprows=0, nrows=None, split_mode
 
     Returns
     -------
-    data_tuples : array
-        Length `numsets` array holding a `(group1, group2)` tuple for each
-        measurement set in `data` (as specified by `numsets`), where `group1`
-        and `group2` are 2D Numpy arrays holding the Group 1 and Group 2
-        measurements, respectively, for each set. This return type is used for
-        conventional split modes.
+    data_tuples : list
+        Array holding a `(group1, group2)` tuple for each measurement set
+        analyzed in `data`, where `group1` and `group2` are 2D Numpy arrays
+        holding the Group 1 and Group 2 measurements, respectively, for each
+        set. This return type is used for conventional split modes.
     data_tuple : tuple
         Tuple `(group1, group2)` holding Group 1 and Group 2 measurements.
         Fields are
@@ -122,14 +121,52 @@ def split_data_for_spm(data, numsets, n1, n2, skiprows=0, nrows=None, split_mode
     if split_mode is None:
         split_mode = IoConstants.SPM_SPLIT_MODES['fixed_baseline']
 
-    if split_mode == IoConstants.SPM_SPLIT_MODES['parallel_all']:
+    if split_mode == IoConstants.SPM_SPLIT_MODES['parallel']:
+        return _split_data_parallel(data, numsets, n1, n2, skiprows, nrows, equalize_columns)
+    elif split_mode == IoConstants.SPM_SPLIT_MODES['parallel_all']:
         return _split_data_parallel_all(data, numsets, n1, n2, skiprows, nrows, equalize_columns)
+    elif split_mode == IoConstants.SPM_SPLIT_MODES['fixed_baseline']:
+        return _split_data_fixed_baseline(data, numsets, n1, n2, skiprows, nrows, equalize_columns)
     elif split_mode == IoConstants.SPM_SPLIT_MODES['fixed_baseline_all']:
         return _split_data_fixed_baseline_all(data, numsets, n1, n2, skiprows, nrows, equalize_columns)
+    elif split_mode == IoConstants.SPM_SPLIT_MODES['potentiation_creep']:
+        return _split_data_potentiation_creep(data, numsets, n1, n2, skiprows, nrows, equalize_columns)
     elif split_mode == IoConstants.SPM_SPLIT_MODES['potentiation_creep_all']:
         return _split_data_potentiation_creep_all(data, numsets, n1, n2, skiprows, nrows, equalize_columns)
     else:
         raise ValueError("Unsupported split_mode ({}) passed to `split_data_for_spm`.".format(split_mode))
+
+
+def _split_data_parallel(data, numsets, n1, n2, skiprows, nrows, equalize_columns):
+    """Handles splitting SPM data for split mode `parallel`.
+
+    For documentation of split modes see
+    `constants.IoConstants.SPM_SPLIT_MODES`.
+
+    Parameters
+    ----------
+    See `split_data_for_spm`.
+
+    Returns
+    -------
+    data_tuples : list
+        Length `numsets` array of tuples holding Group 1 and Group 2
+        measurements for each measurement set.
+
+    """
+    data_tuples = []
+    n = n1 + n2
+
+    for s in range(numsets):
+        idxs1 = list(range(s*n, s*n + n1))
+        idxs2 = list(range(s*n + n1, (s + 1)*n))
+        group1 = data[skiprows:skiprows + nrows, idxs1]
+        group2 = data[skiprows:skiprows + nrows, idxs2]
+        if equalize_columns:
+            group1, group2 = _equalize_columns(group1, group2)
+        data_tuples.append((group1, group2))
+
+    return data_tuples
 
 
 def _split_data_parallel_all(data, numsets, n1, n2, skiprows, nrows, equalize_columns):
@@ -162,6 +199,61 @@ def _split_data_parallel_all(data, numsets, n1, n2, skiprows, nrows, equalize_co
     return group1, group2
 
 
+def _split_data_fixed_baseline(data, numsets, n1, n2, skiprows, nrows, equalize_columns):
+    """Handles splitting SPM data for split mode `fixed_baseline`.
+
+    For documentation of split modes see
+    `constants.IoConstants.SPM_SPLIT_MODES`.
+
+    Parameters
+    ----------
+    See `split_data_for_spm`.
+
+    Returns
+    -------
+    data_tuples : list
+        Length `numsets` array of tuples holding Group 1 and Group 2
+        measurements for each measurement set.
+
+    """
+    data_tuples = []
+    n = n1 + n2
+    idxs1 = list(range(n1))  # measurements in first set only
+    
+    for s in range(numsets):
+        idxs2 = list(range(s*n + n1, (s + 1)*n))
+        group1 = data[skiprows:skiprows + nrows, idxs1]
+        group2 = data[skiprows:skiprows + nrows, idxs2]
+
+        # No need to deal with adding noise if not equalizing columns
+        if not equalize_columns:
+            data_tuples.append((group1, group2))
+            continue
+
+        group1, group2 = _equalize_columns(group1, group2)
+
+        # Apply noise to each Group 1 measurement beyond set 1. The assumption here
+        # is that in fixed_baseline mode columns would have been added to Group 1
+        # to match the number of columns in Group 2, but the `if` allows for the
+        # edge case where Group 1 originally had more columns than Group 2.
+        noise_cols = group2.shape[1] - n1
+        if noise_cols <= 0:
+            return (group1, group2) 
+
+        mu = 0
+        sigma = np.std(group2, ddof=1, axis=1)
+        noise = np.zeros((group1.shape[0], noise_cols))
+        for i in range(noise.shape[0]):
+            noise[i] = np.random.default_rng().normal(mu, sigma[i], noise_cols)
+
+        # Scale down noise to a small fraction of group1 peak-to-peak amplitude
+        noise *= IoConstants.NOISE_SCALE * (np.max(group1) - np.min(group1))
+        group1[:, n1:] += noise
+        data_tuples.append((group1, group2))
+
+    return data_tuples
+
+
 def _split_data_fixed_baseline_all(data, numsets, n1, n2, skiprows, nrows, equalize_columns):
     """Handles splitting SPM data for split mode `fixed_baseline_all`.
 
@@ -189,11 +281,11 @@ def _split_data_fixed_baseline_all(data, numsets, n1, n2, skiprows, nrows, equal
     group1 = data[skiprows:skiprows + nrows, idxs1]
     group2 = data[skiprows:skiprows + nrows, idxs2]
 
-    # No need to deal with adding noise to padded-on columns
+    # No need to deal with adding noise if not equalizing columns
     if not equalize_columns:
         return (group1, group2)
 
-    group1, group2 = _equalize_columns(data[skiprows:skiprows + nrows, idxs1], data[skiprows:skiprows + nrows, idxs2])
+    group1, group2 = _equalize_columns(group1, group2)
 
     # Apply noise to each Group 1 measurement beyond set 1. The assumption here
     # is that in fixed_baseline mode columns would have been added to Group 1
@@ -213,6 +305,62 @@ def _split_data_fixed_baseline_all(data, numsets, n1, n2, skiprows, nrows, equal
     noise *= IoConstants.NOISE_SCALE * (np.max(group1) - np.min(group1))
     group1[:, n1:] += noise
     return (group1, group2) 
+
+
+def _split_data_potentiation_creep(data, numsets, n1, n2, skiprows, nrows, equalize_columns):
+    """Handles splitting SPM data for split mode `potentiation_creep`.
+
+    For documentation of split modes see
+    `constants.IoConstants.SPM_SPLIT_MODES`.
+
+    Parameters
+    ----------
+    See `split_data_for_spm`.
+
+    Returns
+    -------
+    data_tuples : list
+        Length `numsets - 1` array of tuples holding Group 1 and Group 2
+        measurements for each measurement set.
+
+    """
+    data_tuples = []
+    n = n1 + n2
+    idxs1 = list(range(n1))  # measurements in first set only
+
+    for s in range(1, numsets):
+        idxs2 = list(range(s*n, s*n + n1))  # later sets of Group 1
+        group1 = data[skiprows:skiprows + nrows, idxs1]
+        group2 = data[skiprows:skiprows + nrows, idxs2]
+
+        # No need to deal with adding noise if not equalizing columns
+        if not equalize_columns:
+            data_tuples.append((group1, group2))
+            continue
+
+        group1, group2 = _equalize_columns(group1, group2)
+
+        # Apply noise to each Group 1 measurement beyond set 1. The assumption here
+        # is that the original Group 1 will have had multiple measurement sets
+        # beyond set 1, but the `if` allows for the edge case where the original
+        # Group 1 originally had 1 or 2 measurement sets, in which case `group1`
+        # and `group2` would have the same number of columns.
+        noise_cols = group2.shape[1] - n1
+        if noise_cols <= 0:
+            return (group1, group2) 
+
+        mu = 0
+        sigma = np.std(group2, ddof=1, axis=1)
+        noise = np.zeros((group1.shape[0], noise_cols))
+        for i in range(noise.shape[0]):
+            noise[i] = np.random.default_rng().normal(mu, sigma[i], noise_cols)
+
+        # Scale down noise to a small fraction of group1 peak-to-peak amplitude
+        noise *= IoConstants.NOISE_SCALE * (np.max(group1) - np.min(group1))
+        group1[:, n1:] += noise
+        data_tuples.append((group1, group2))
+    
+    return data_tuples
 
 
 def _split_data_potentiation_creep_all(data, numsets, n1, n2, skiprows, nrows, equalize_columns):
@@ -242,7 +390,7 @@ def _split_data_potentiation_creep_all(data, numsets, n1, n2, skiprows, nrows, e
     group1 = data[skiprows:skiprows + nrows, idxs1]
     group2 = data[skiprows:skiprows + nrows, idxs2]
 
-    # No need to deal with adding noise to padded-on columns
+    # No need to deal with adding noise if not equalizing columns
     if not equalize_columns:
         return (group1, group2)
 
