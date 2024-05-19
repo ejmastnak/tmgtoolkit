@@ -188,8 +188,12 @@ def _split_data_fixed_baseline_all(data, numsets, n1, n2, skiprows, nrows, equal
 
     group1 = data[skiprows:skiprows + nrows, idxs1]
     group2 = data[skiprows:skiprows + nrows, idxs2]
-    if equalize_columns:
-        group1, group2 = _equalize_columns(data[skiprows:skiprows + nrows, idxs1], data[skiprows:skiprows + nrows, idxs2])
+
+    # No need to deal with adding noise to padded-on columns
+    if not equalize_columns:
+        return (group1, group2)
+
+    group1, group2 = _equalize_columns(data[skiprows:skiprows + nrows, idxs1], data[skiprows:skiprows + nrows, idxs2])
 
     # Apply noise to each Group 1 measurement beyond set 1. The assumption here
     # is that in fixed_baseline mode columns would have been added to Group 1
@@ -237,8 +241,12 @@ def _split_data_potentiation_creep_all(data, numsets, n1, n2, skiprows, nrows, e
 
     group1 = data[skiprows:skiprows + nrows, idxs1]
     group2 = data[skiprows:skiprows + nrows, idxs2]
-    if equalize_columns:
-        group1, group2 = _equalize_columns(group1, group2)
+
+    # No need to deal with adding noise to padded-on columns
+    if not equalize_columns:
+        return (group1, group2)
+
+    group1, group2 = _equalize_columns(group1, group2)
 
     # Apply noise to each Group 1 measurement beyond set 1. The assumption here
     # is that the original Group 1 will have had multiple measurement sets
