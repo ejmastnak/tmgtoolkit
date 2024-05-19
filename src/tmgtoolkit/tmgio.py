@@ -44,7 +44,7 @@ def tmg_excel_to_ndarray(fname, skiprows=None, nrows=None, skipcols=None, ncols=
     return pd.read_excel(fname, header=None, skiprows=skiprows, nrows=nrows, usecols=usecols).values
 
 
-def split_data_for_spm(data, numsets, n1, n2, skiprows=0, nrows=None, split_mode=None):
+def split_data_for_spm(data, numsets, n1, n2, skiprows=0, nrows=None, split_mode=None, equalize_columns=True):
     """Splits structured input data into groups for analysis with SPM.
 
     Splits the time series in the inputted 2D array `data` into groups that can
@@ -85,6 +85,12 @@ def split_data_for_spm(data, numsets, n1, n2, skiprows=0, nrows=None, split_mode
     split_mode : int, optional
         An symbolic constant from `constants.IoConstants` controlling how to
         split the measurements in `data`.
+    equalize_columns : boolean, optional
+        If True, all returned `group1` and `group2` arrays are guaranteed to
+        have the same shape. If the inputted data does not split into an equal
+        number of Group 1 and Group 2 time series under the given parameters,
+        then the group with fewer time series is padded with additional time
+        series until `group1` and `group2` have the same shape.
 
     Returns
     -------
@@ -103,12 +109,6 @@ def split_data_for_spm(data, numsets, n1, n2, skiprows=0, nrows=None, split_mode
             2D Numpy array holding Group 2 measurements.
         This return type is used for "all"-type split modes.
 
-    Note: the arrays `group1` and `group2` are guaranteed to be returned
-    with the same shape. If the inputted data does not split into an equal
-    number of Group 1 and Group 2 time series under the given parameters,
-    then the group with fewer time series is padded with additional time
-    series until `group1` and `group2` have the same shape.
-
     """
     assert len(data.shape) == 2, "Inputted data must be two-dimensional array."
     assert skiprows >= 0, "The number of rows to skip must be non-negative."
@@ -123,16 +123,16 @@ def split_data_for_spm(data, numsets, n1, n2, skiprows=0, nrows=None, split_mode
         split_mode = IoConstants.SPM_SPLIT_MODES['fixed_baseline']
 
     if split_mode == IoConstants.SPM_SPLIT_MODES['parallel_all']:
-        return _split_data_parallel_all(data, numsets, n1, n2, skiprows, nrows)
+        return _split_data_parallel_all(data, numsets, n1, n2, skiprows, nrows, equalize_columns)
     elif split_mode == IoConstants.SPM_SPLIT_MODES['fixed_baseline_all']:
-        return _split_data_fixed_baseline_all(data, numsets, n1, n2, skiprows, nrows)
+        return _split_data_fixed_baseline_all(data, numsets, n1, n2, skiprows, nrows, equalize_columns)
     elif split_mode == IoConstants.SPM_SPLIT_MODES['potentiation_creep_all']:
-        return _split_data_potentiation_creep_all(data, numsets, n1, n2, skiprows, nrows)
+        return _split_data_potentiation_creep_all(data, numsets, n1, n2, skiprows, nrows, equalize_columns)
     else:
         raise ValueError("Unsupported split_mode ({}) passed to `split_data_for_spm`.".format(split_mode))
 
 
-def _split_data_parallel_all(data, numsets, n1, n2, skiprows, nrows):
+def _split_data_parallel_all(data, numsets, n1, n2, skiprows, nrows, equalize_columns):
     """Handles splitting SPM data for split mode `parallel_all`.
 
     For documentation of split modes see
@@ -154,10 +154,15 @@ def _split_data_parallel_all(data, numsets, n1, n2, skiprows, nrows):
     for s in range(numsets):
         idxs1.extend(range(s*n, s*n + n1))
         idxs2.extend(range(s*n + n1, (s + 1)*n))
-    return _equalize_columns(data[skiprows:skiprows + nrows, idxs1], data[skiprows:skiprows + nrows, idxs2])
+
+    group1 = data[skiprows:skiprows + nrows, idxs1]
+    group2 = data[skiprows:skiprows + nrows, idxs2]
+    if equalize_columns:
+        group1, group2 = _equalize_columns(group1, group2)
+    return group1, group2
 
 
-def _split_data_fixed_baseline_all(data, numsets, n1, n2, skiprows, nrows):
+def _split_data_fixed_baseline_all(data, numsets, n1, n2, skiprows, nrows, equalize_columns):
     """Handles splitting SPM data for split mode `fixed_baseline_all`.
 
     For documentation of split modes see
@@ -180,7 +185,11 @@ def _split_data_fixed_baseline_all(data, numsets, n1, n2, skiprows, nrows):
     idxs1.extend(range(n1))  # measurements in first set only
     for s in range(numsets):
         idxs2.extend(range(s*n + n1, (s + 1)*n))
-    group1, group2 = _equalize_columns(data[skiprows:skiprows + nrows, idxs1], data[skiprows:skiprows + nrows, idxs2])
+
+    group1 = data[skiprows:skiprows + nrows, idxs1]
+    group2 = data[skiprows:skiprows + nrows, idxs2]
+    if equalize_columns:
+        group1, group2 = _equalize_columns(data[skiprows:skiprows + nrows, idxs1], data[skiprows:skiprows + nrows, idxs2])
 
     # Apply noise to each Group 1 measurement beyond set 1. The assumption here
     # is that in fixed_baseline mode columns would have been added to Group 1
@@ -202,7 +211,7 @@ def _split_data_fixed_baseline_all(data, numsets, n1, n2, skiprows, nrows):
     return (group1, group2) 
 
 
-def _split_data_potentiation_creep_all(data, numsets, n1, n2, skiprows, nrows):
+def _split_data_potentiation_creep_all(data, numsets, n1, n2, skiprows, nrows, equalize_columns):
     """Handles splitting SPM data for split mode `potentiation_creep_all`.
 
     For documentation of split modes see
@@ -225,7 +234,11 @@ def _split_data_potentiation_creep_all(data, numsets, n1, n2, skiprows, nrows):
     idxs1.extend(range(n1))  # measurements in first set only
     for s in range(1, numsets):  # later sets of Group 1
         idxs2.extend(range(s*n, s*n + n1))
-    group1, group2 = _equalize_columns(data[skiprows:skiprows + nrows, idxs1], data[skiprows:skiprows + nrows, idxs2])
+
+    group1 = data[skiprows:skiprows + nrows, idxs1]
+    group2 = data[skiprows:skiprows + nrows, idxs2]
+    if equalize_columns:
+        group1, group2 = _equalize_columns(group1, group2)
 
     # Apply noise to each Group 1 measurement beyond set 1. The assumption here
     # is that the original Group 1 will have had multiple measurement sets
