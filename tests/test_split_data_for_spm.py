@@ -38,7 +38,7 @@ def test_split_data_parallel():
 
     split_mode = IoConstants.SPM_SPLIT_MODES['parallel']
     equalize_columns = False
-    data_tuples = tmgio.split_data_for_spm(data, numsets, n1, n2, split_mode=split_mode, equalize_columns=equalize_columns)
+    data_tuples = tmgio.split_data_for_spm(data, numsets, n1, n2, split_mode, equalize_columns=equalize_columns)
 
     assert len(data_tuples) == numsets
 
@@ -72,7 +72,7 @@ def test_split_data_parallel_all():
 
     split_mode = IoConstants.SPM_SPLIT_MODES['parallel_all']
     equalize_columns = False
-    group1, group2 = tmgio.split_data_for_spm(data, numsets, n1, n2, split_mode=split_mode, equalize_columns=equalize_columns)
+    group1, group2 = tmgio.split_data_for_spm(data, numsets, n1, n2, split_mode, equalize_columns=equalize_columns)
 
     assert len(group1.shape) == 2
     assert len(group2.shape) == 2
@@ -103,7 +103,7 @@ def test_split_data_fixed_baseline():
 
     split_mode = IoConstants.SPM_SPLIT_MODES['fixed_baseline']
     equalize_columns = False
-    data_tuples = tmgio.split_data_for_spm(data, numsets, n1, n2, split_mode=split_mode, equalize_columns=equalize_columns)
+    data_tuples = tmgio.split_data_for_spm(data, numsets, n1, n2, split_mode, equalize_columns=equalize_columns)
 
     assert len(data_tuples) == numsets
 
@@ -137,7 +137,7 @@ def test_split_data_fixed_baseline_all():
 
     split_mode = IoConstants.SPM_SPLIT_MODES['fixed_baseline_all']
     equalize_columns = False
-    group1, group2 = tmgio.split_data_for_spm(data, numsets, n1, n2, split_mode=split_mode, equalize_columns=equalize_columns)
+    group1, group2 = tmgio.split_data_for_spm(data, numsets, n1, n2, split_mode, equalize_columns=equalize_columns)
 
     assert len(group1.shape) == 2
     assert len(group2.shape) == 2
@@ -168,7 +168,7 @@ def test_split_data_potentiation_creep():
 
     split_mode = IoConstants.SPM_SPLIT_MODES['potentiation_creep']
     equalize_columns = False
-    data_tuples = tmgio.split_data_for_spm(data, numsets, n1, n2, split_mode=split_mode, equalize_columns=equalize_columns)
+    data_tuples = tmgio.split_data_for_spm(data, numsets, n1, n2, split_mode, equalize_columns=equalize_columns)
 
     assert len(data_tuples) == numsets - 1
 
@@ -202,7 +202,7 @@ def test_split_data_potentiation_creep_all():
 
     split_mode = IoConstants.SPM_SPLIT_MODES['potentiation_creep_all']
     equalize_columns = False
-    group1, group2 = tmgio.split_data_for_spm(data, numsets, n1, n2, split_mode=split_mode, equalize_columns=equalize_columns)
+    group1, group2 = tmgio.split_data_for_spm(data, numsets, n1, n2, split_mode, equalize_columns=equalize_columns)
 
     assert len(group1.shape) == 2
     assert len(group2.shape) == 2
