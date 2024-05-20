@@ -44,7 +44,7 @@ def tmg_excel_to_ndarray(fname, skiprows=None, nrows=None, skipcols=None, ncols=
     return pd.read_excel(fname, header=None, skiprows=skiprows, nrows=nrows, usecols=usecols).values
 
 
-def split_data_for_spm(data, numsets, n1, n2, skiprows=0, nrows=None, split_mode=None, equalize_columns=True):
+def split_data_for_spm(data, numsets, n1, n2, split_mode, skiprows=0, nrows=None, equalize_columns=True):
     """Splits structured input data into groups for analysis with SPM.
 
     Splits the time series in the inputted 2D array `data` into groups that can
@@ -79,12 +79,12 @@ def split_data_for_spm(data, numsets, n1, n2, skiprows=0, nrows=None, split_mode
         Number of Group 2 time series in each set.
     skiprows : int, optional
         Skips the first `skiprows` in `data`.
+    split_mode : int
+        An symbolic constant from `constants.IoConstants` controlling how to
+        split the measurements in `data`.
     nrows : int, optional
         If provided, return only the first `nrows` after `skiprows` in `data`.
         The default is to return all rows in `data`.
-    split_mode : int, optional
-        An symbolic constant from `constants.IoConstants` controlling how to
-        split the measurements in `data`.
     equalize_columns : boolean, optional
         If True, all returned `group1` and `group2` arrays are guaranteed to
         have the same shape. If the inputted data does not split into an equal
@@ -117,9 +117,6 @@ def split_data_for_spm(data, numsets, n1, n2, skiprows=0, nrows=None, split_mode
         assert nrows < data.shape[0] - skiprows, "The requested number of rows to return exceeds the number of data rows ({})".format(nrows, data.shape[0]) + ("and rows to skip ({}).".format(skiprows) if skiprows > 0 else ".")
     else:
         nrows = data.shape[0] - skiprows
-
-    if split_mode is None:
-        split_mode = IoConstants.SPM_SPLIT_MODES['fixed_baseline']
 
     if split_mode == IoConstants.SPM_SPLIT_MODES['parallel']:
         return _split_data_parallel(data, numsets, n1, n2, skiprows, nrows, equalize_columns)
