@@ -143,6 +143,7 @@ class PlottingConstants:
 class NamedTupleTypes:
     TmgParams = namedtuple('TmgParams', [
         'dm',
+        'tm',
         'td',
         'tc',
         'ts',

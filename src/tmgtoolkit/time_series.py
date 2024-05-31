@@ -72,6 +72,7 @@ def get_tmg_parameters_of_time_series(y, t=None,
         A TmgParams namedtuple holding the computed TMG parameter values. The
         TmgParams namedtuple has the following fields:
         - `dm` (float): value of Dm, in the same units as `y`.
+        - `tm` (float): time of Dm, in the same units as `t`.
         - `td` (float): value of Td, in the same units as `t`.
         - `tc` (float): value of Tc, in the same units as `t`.
         - `ts` (float): value of Ts, in the same units as `t`.
@@ -83,9 +84,11 @@ def get_tmg_parameters_of_time_series(y, t=None,
     if ignore_maxima_less_than is None:
         ignore_maxima_less_than = TimeSeriesConstants.TMG_PARAMS['ignore_maxima_less_than']
 
-    dm_idx, dm, _ = _get_dm_idx_and_value(y, ignore_maxima_with_idx_less_than,
-                                          ignore_maxima_less_than,
-                                          use_first_max_as_dm, interpolate_dm)
+    dm_idx, dm, float_dm_idx = _get_dm_idx_and_value(y,
+                                                     ignore_maxima_with_idx_less_than,
+                                                     ignore_maxima_less_than,
+                                                     use_first_max_as_dm,
+                                                     interpolate_dm)
 
     t10_left_idx = _interpolate_idx_of_target_amplitude(y, 0.1*dm, True)
     t50_left_idx = _interpolate_idx_of_target_amplitude(y, 0.5*dm, True)
@@ -94,6 +97,7 @@ def get_tmg_parameters_of_time_series(y, t=None,
     t50_right_idx = _interpolate_idx_of_target_amplitude(y, 0.5*dm, False, start_search_at_idx=dm_idx)
 
     # Convert indices to time
+    tm = _idx_to_time(float_dm_idx, t)
     t10_left = _idx_to_time(t10_left_idx, t)
     t50_left = _idx_to_time(t50_left_idx, t)
     t90_left = _idx_to_time(t90_left_idx, t)
@@ -106,7 +110,7 @@ def get_tmg_parameters_of_time_series(y, t=None,
     ts = t50_right - t50_left
     tr = t50_right - t90_right
 
-    return NamedTupleTypes.TmgParams(dm=dm, td=td, tc=tc, ts=ts, tr=tr)
+    return NamedTupleTypes.TmgParams(dm=dm, tm=tm, td=td, tc=tc, ts=ts, tr=tr)
 
 
 def get_derivative_of_time_series(y, t=None):
