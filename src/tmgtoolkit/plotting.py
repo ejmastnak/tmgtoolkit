@@ -66,24 +66,29 @@ def plot_time_series(ax, y, t=None, **kwargs):
             linewidth=kwargs.get('linewidth'), label=kwargs.get('label'))
 
 
-def plot_spm_t_statistic(ax, spm_ts, spm_ti, t=None, **kwargs):
+def plot_spm_t_statistic(ax, t_statistic, alpha, threshold, clusters, t=None, **kwargs):
     """Plots an SPM t-statistic and accompanying inference results.
 
-    Plots the inputted SPM t-statistic curve `spm_ts` and a summary of
-    the accompanying inference object `spm_ti` on the inputted
-    Matplotlib axes object `ax`. This function modifies `ax` directly and does
-    not return a new axis.
+    Plots the inputted SPM t-statistic curve `t_statistic` and a summary of the
+    accompanying inference results `spm_ti` on the inputted Matplotlib axes
+    object `ax`. This function modifies `ax` directly and does not return a new
+    axis.
 
     Parameters
     ----------
     ax : matplotlib.axes._axes.Axes
         Matplotlib axis object on which to plot
-    spm_ts : dict
-        A SpmTStatistic dict, as returned by `spm.get_spm_t_statistic()`,
-        holding the SPM t-test statistic curve to be plotted.
-    spm_ti : dict
-        A SpmTInference dict produced by performing inference on
-        `spm_ts` using the function `spm.get_spm_t_inference()`.
+    t_statistic : ndarray
+        1D Numpy array holding the SPM t-test statistic curve to be plotted
+    alpha : float
+        Alpha value used for SPM inference
+    threshold : float
+        Significance threshold value from SPM inference
+    clusters : list
+            A list of SpmCluster dicts summarizing each supra-threshold
+            cluster, or an empty list if the inference did not produce
+            supra-threshold clusters, as in the `clusters` key returned by
+            `get_spm_t_inference`.
     t : ndarray, optional
         1D Numpy array holding the time (or other independent variable) values
         on which the SPM t-statistic curve `spm_ts['t_statistic']` is
@@ -126,11 +131,8 @@ def plot_spm_t_statistic(ax, spm_ts, spm_ti, t=None, **kwargs):
 
     _remove_spines(ax)
 
-    spmt = spm_ts['t_statistic']
-    threshold = spm_ti['threshold']
-
     # Plot t-statistic
-    ax.plot(t, spmt, color=kwargs.get('color'),
+    ax.plot(t, t_statistic, color=kwargs.get('color'),
             marker=kwargs.get('marker', PlottingConstants.SPM_STATISTIC_DEFAULTS['marker']),
             linewidth=kwargs.get('linewidth'), label=kwargs.get('label'))
 
@@ -147,15 +149,15 @@ def plot_spm_t_statistic(ax, spm_ts, spm_ti, t=None, **kwargs):
 
     # Shade between curve and threshold
     fill_color = kwargs.get('cluster_fillcolor', PlottingConstants.SPM_STATISTIC_DEFAULTS['cluster_fillcolor'])
-    ax.fill_between(t, spmt, threshold, where=spmt >= threshold,
+    ax.fill_between(t, t_statistic, threshold, where=t_statistic >= threshold,
             interpolate=True, color=fill_color)
-    ax.fill_between(t, spmt, -threshold, where=spmt <= -threshold,
+    ax.fill_between(t, t_statistic, -threshold, where=t_statistic <= -threshold,
             interpolate=True, color=fill_color)
 
     # Text box showing SPM cluster parameters
-    best_cluster = None if len(spm_ti['clusters']) == 0 else spm_ti['clusters'][_choose_cluster_to_display(spm_ti['clusters'])]
+    best_cluster = None if len(clusters) == 0 else clusters[_choose_cluster_to_display(clusters)]
     ax.text(PlottingConstants.SPM_STATISTIC_DEFAULTS['textbox_x'], PlottingConstants.SPM_STATISTIC_DEFAULTS['textbox_y'],
-            _get_spm_axis_text(spm_ti['alpha'], spm_ti['threshold'], best_cluster),
+            _get_spm_axis_text(alpha, threshold, best_cluster),
             va='top', ha='left',
             transform=ax.transAxes,
             bbox=dict(facecolor=PlottingConstants.SPM_STATISTIC_DEFAULTS['textbox_facecolor'],
@@ -163,17 +165,10 @@ def plot_spm_t_statistic(ax, spm_ts, spm_ti, t=None, **kwargs):
                       boxstyle=PlottingConstants.SPM_STATISTIC_DEFAULTS['textbox_style']))
 
 
-def plot_spm_input_data(ax, group1, group2, t=None, **kwargs):
-    """Plots the data used to compute an SPM t-statistic
-
-    Plots the mean value curve and standard deviation clouds of data that would
-    be used as input to a function like `spm.get_spm_t_statistic()` to compute
-    an SPM t-statistic.
-
-    SPM t-statistic curve `spm_t_statistic` and a summary of
-    the accompanying inference results `spm_t_inference` on the inputted
-    Matplotlib axes object `ax`. This function modifies `ax` directly and does
-    not return a new axis.
+def plot_spm_input_data_lazy(ax, group1, group2, t=None, **kwargs):
+    """Plots the data used to compute an SPM t-statistic.
+    
+    Wrapper around `plot_spm_input_data` that takes care of computing mean and standard deviation for the user.
 
     Parameters
     ----------
@@ -185,6 +180,48 @@ def plot_spm_input_data(ax, group1, group2, t=None, **kwargs):
     group2 : ndarray
         2D Numpy array holding at least two time series, as documented in
         `spm.get_spm_t_statistic()`
+    t : ndarray, optional
+        1D Numpy array holding the time (or other independent variable) values
+        on which the time series in `group1` and `group2` are defined.
+
+    Keyword Arguments
+    ----------
+    See `plot_spm_input_data`.
+
+    """
+    mean1 = np.mean(group1, axis=1)
+    mean2 = np.mean(group2, axis=1)
+    std1 = np.std(group1, ddof=1, axis=1)
+    std2 = np.std(group2, ddof=1, axis=1)
+    plot_spm_input_data(ax, mean1, mean2, std1, std2, t=t, **kwargs)
+
+
+
+def plot_spm_input_data(ax, mean1, mean2, std1, std2, t=None, **kwargs):
+    """Plots the data used to compute an SPM t-statistic.
+
+    Plots the mean value curve and standard deviation clouds of the data that
+    would be used as input to a function like `spm.get_spm_t_statistic()` to
+    compute an SPM t-statistic.
+
+    This function modifies `ax` directly and does not return a new axis.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes._axes.Axes
+        Matplotlib axis object on which to plot
+    mean1 : ndarray
+        1D Numpy array mean value curve of group 1 SPM input data.
+        See `spm.get_spm_t_statistic()`
+    mean2 : ndarray
+        1D Numpy array mean value curve of group 2 SPM input data.
+        See `spm.get_spm_t_statistic()`
+    std1 : ndarray
+        1D Numpy array standard deviation curve of group 1 SPM input data.
+        See `spm.get_spm_t_statistic()`
+    std2 : ndarray
+        1D Numpy array standard deviation curve of group 2 SPM input data.
+        See `spm.get_spm_t_statistic()`
     t : ndarray, optional
         1D Numpy array holding the time (or other independent variable) values
         on which the time series in `group1` and `group2` are defined.
@@ -220,7 +257,7 @@ def plot_spm_input_data(ax, group1, group2, t=None, **kwargs):
 
     """
     if t is None:
-        t = np.arange(y)
+        t = np.arange(mean1)
 
     xlabel=kwargs.get('xlabel', PlottingConstants.SPM_STATISTIC_DEFAULTS['xlabel'])
     ylabel=kwargs.get('ylabel', PlottingConstants.SPM_STATISTIC_DEFAULTS['ylabel'])
@@ -230,11 +267,6 @@ def plot_spm_input_data(ax, group1, group2, t=None, **kwargs):
     ax.set_title(title)
 
     _remove_spines(ax)
-
-    mean1 = np.mean(group1, axis=1)
-    mean2 = np.mean(group2, axis=1)
-    std1 = np.std(group1, ddof=1, axis=1)
-    std2 = np.std(group2, ddof=1, axis=1)
 
     color1 = kwargs.get('color1', PlottingConstants.SPM_INPUT_DATA_DEFAULTS['color1'])
     color2 = kwargs.get('color2', PlottingConstants.SPM_INPUT_DATA_DEFAULTS['color2'])
@@ -342,10 +374,10 @@ def _get_spm_axis_text(alpha, threshold, cluster):
              "$t^* = {threshold:.2f}$\n"
             + "$\\alpha = {alpha:.2f}$\n"
             + "$p < 10^{{-16}}$\n"
-            + "$T_1 = {start_time:.1f} \, \\mathrm{{ms}}$\n"
-            + "$T_2 = {end_time:.1f} \, \\mathrm{{ms}}$\n"
+            + "$T_1 = {start_time:.1f} \\, \\mathrm{{ms}}$\n"
+            + "$T_2 = {end_time:.1f} \\, \\mathrm{{ms}}$\n"
             + "$t$-$\\mathrm{{max}} = {extremum:.1f}$\n"
-            + "$T_{{\\mathrm{{max}}}} = {extremum_time:.1f} \, \\mathrm{{ms}}$\n"
+            + "$T_{{\\mathrm{{max}}}} = {extremum_time:.1f} \\, \\mathrm{{ms}}$\n"
             + "$\\mathrm{{Area}} = {area:.0f}$"
             ),
         alpha = alpha,
@@ -364,10 +396,10 @@ def _get_spm_axis_text(alpha, threshold, cluster):
               "$t^* = {threshold:.2f}$\n"
             + "$\\alpha = {alpha:.2f}$\n"
             + "$p = {man:.0f} \\cdot 10^{{{exp:.0f}}}$\n"
-            + "$T_1 = {start_time:.1f} \, \\mathrm{{ms}}$\n"
-            + "$T_2 = {end_time:.1f} \, \\mathrm{{ms}}$\n"
+            + "$T_1 = {start_time:.1f} \\, \\mathrm{{ms}}$\n"
+            + "$T_2 = {end_time:.1f} \\, \\mathrm{{ms}}$\n"
             + "$t$-$\\mathrm{{max}} = {extremum:.1f}$\n"
-            + "$T_{{\\mathrm{{max}}}} = {extremum_time:.1f} \, \\mathrm{{ms}}$\n"
+            + "$T_{{\\mathrm{{max}}}} = {extremum_time:.1f} \\, \\mathrm{{ms}}$\n"
             + "$\\mathrm{{Area}} = {area:.0f}$"
             ),
                           alpha = alpha,
