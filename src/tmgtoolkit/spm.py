@@ -1,19 +1,18 @@
-from collections import namedtuple
 import numpy as np
 import spm1d
 
-from .constants import SpmConstants, NamedTupleTypes
+from .constants import SpmConstants
 from .time_series import _idx_to_time, _interpolate_extremum
 
 def get_spm_t_statistic(group1, group2, mitigate_iir_filter_artefact=True, swap_groups=False):
     """Computes SPM t-test statistic for the inputted data.
 
-    Returns an SpmTStatistic namedtuple containing the 1D SPM t-test statistic
-    resulting from a paired SPM t-test comparing the time series data in the
-    inputted arrays `group1` and `group2`. The returned SPM t-statistic is
-    implicitly defined on the same time (or other independent variable) grid as
-    the time series in `group1` and `group2`, but it is up to the calling code
-    to keep track of these time values.
+    Returns a dict containing the 1D SPM t-test statistic resulting from a
+    paired SPM t-test comparing the time series data in the inputted arrays
+    `group1` and `group2`. The returned SPM t-statistic is implicitly defined
+    on the same time (or other independent variable) grid as the time series in
+    `group1` and `group2`, but it is up to the calling code to keep track of
+    these time values.
 
     Parameters
     ----------
@@ -54,11 +53,10 @@ def get_spm_t_statistic(group1, group2, mitigate_iir_filter_artefact=True, swap_
 
     Returns
     -------
-    spm_ts : SpmTStatistic
-        A SpmTStatistic namedtuple holding the SPM t-test statistic curve
-        produced by comparing the time series data in the inputted arrays `group1`
-        and `group2`.
-        The SpmTStatistic namedtuple has a single field:
+    spm_ts : dict
+        A dict dict holding the SPM t-test statistic curve produced by
+        comparing the time series data in the inputted arrays `group1` and
+        `group2`. The dict has a single field:
         - `t_statistic` (ndarray): a 1D Numpy array holding the SPM t-statistic
               curve resulting from the comparison of the time series in `group1` to
               the time series in `group2`. The length of `t_statistic` will equal
@@ -68,7 +66,6 @@ def get_spm_t_statistic(group1, group2, mitigate_iir_filter_artefact=True, swap_
         - `spm_t` (spm1d._spm.SPM_T): wrapper object for the t-statistic used
             by the spm1d library. Meant for internal use only and subject to
             change in future versions.
-        Access fields with e.g. `spm_ts.t_statistic`.
 
     """
     if group1.shape != group2.shape:
@@ -80,31 +77,33 @@ def get_spm_t_statistic(group1, group2, mitigate_iir_filter_artefact=True, swap_
         spm_t = spm1d.stats.ttest_paired(group2.T, group1.T)
     else:
         spm_t = spm1d.stats.ttest_paired(group1.T, group2.T)
-    return NamedTupleTypes.SpmTStatistic(t_statistic=spm_t.z, spm_t=spm_t)
+    return {
+            't_statistic': spm_t.z,
+            'spm_t': spm_t,
+    }
 
 
 def get_spm_t_inference(spm_ts, t=None, alpha=0.05, two_tailed=True):
     """Performs SPM inference on the inputted SPM t-statistic data.
 
-    Returns an SpmTInference namedtuple holding the results of performing
-    inference on the inputted SpmTStatistic namedtuple at the Type I error
-    level `alpha`.
+    Returns a dict holding the results of performing inference on the inputted
+    `spm_ts` dict at the Type I error level `alpha`.
 
     Parameters
     ----------
-    spm_ts : SpmTStatistic
-        A SpmTStatistic namedtuple as returned by `get_spm_t_statistic`.
+    spm_ts : dict
+        A dict of t-statistic results as returned by `get_spm_t_statistic`.
     t : ndarray, optional
         1D Numpy array holding the time (or other independent variable) values
-        on which the SPM t-statistic curve `spm_ts.t_statistic` is
+        on which the SPM t-statistic curve `spm_ts['t_statistic']` is
         defined. `t` is used to return inference-related time parameters in
         correct units.
         If provided, `t` must be a 1N Numpy array with the same number of
-        points as `spm_ts.t_statistic` (this is the same time grid on
+        points as `spm_ts['t_statistic']` (this is the same time grid on
         which the time series used to compute `spm_ts` were defined).
         If not provided, this function will use index values of
-        `spm_ts.t_statistic` as the independent variable, i.e. `t =
-        [0, 1, 2, ..., spm_ts.t_statistic.shape[0]]`.
+        `spm_ts['t_statistic']` as the independent variable, i.e. 
+        `t = [0, 1, 2, ..., spm_ts['t_statistic'].shape[0]]`.
     alpha : float
         Type I error rate (probability of rejecting the null hypothesis given
         that it is true) when performing inference.
@@ -113,17 +112,17 @@ def get_spm_t_inference(spm_ts, t=None, alpha=0.05, two_tailed=True):
 
     Returns
     -------
-    spm_t_inference : SpmTInference
-        A SpmTInference namedtuple produced by performing inference on the
-        inputted SpmTStatistic namedtuple `spm_ts`.
-        The SpmTStatistic namedtuple has the following fields:
+    spm_t_inference : dict
+        A dict produced by performing statistical inference on the SPM
+        t-statistic results in `spm_ts`.
+        The dict has the following fields:
         - `alpha` (float): alpha used for inference.
         - `p` (float): p value for entire inference.
         - `threshold` (float): SPM t-statistic significance threshold value.
-        - `clusters` (list): a list of SpmCluster namedtuples summarizing each
+        - `clusters` (list): a list of SpmCluster dicts summarizing each
               supra-threshold cluster, or an empty list if the inference did
-              not produce supra-threshold clusters. Each SpmCluster namedtuple
-              has the following fields:
+              not produce supra-threshold clusters. Each SpmCluster dict
+              has the following keys:
               - `idx` (int): the cluster's 0-based index within `clusters`
               - `p` (float): the cluster's p value.
               - `start_time` (float): time at which the cluster begins, in the
@@ -144,16 +143,18 @@ def get_spm_t_inference(spm_ts, t=None, alpha=0.05, two_tailed=True):
                     line at the significance threshold
                     `spm_t_inference.threshold` from the cluster's `start_time`
                     to the cluster's `end_time`.
-        Access fields with e.g. `spm_t_inference.p` for the value of `p`.
     """
-    spm_ti = spm_ts.spm_t.inference(alpha=alpha, two_tailed=two_tailed, interp=True)
+    spm_ti = spm_ts['spm_t'].inference(alpha=alpha, two_tailed=two_tailed, interp=True)
 
     if t is None:
-        t = np.arange(spm_ts.t_statistic)
+        t = np.arange(spm_ts['t_statistic'])
 
-    return NamedTupleTypes.SpmTInference(alpha=alpha, p=spm_ti.p_set,
-                                         threshold=spm_ti.zstar,
-                                         clusters=_get_spm_clusters(spm_ti, t))
+    return {
+      'alpha': alpha,
+      'p': spm_ti.p_set,
+      'threshold': spm_ti.zstar,
+      'clusters': _get_spm_clusters(spm_ti, t)
+    }
 
 
 def _mitigate_iir_filter_artefact(group1, group2):
@@ -209,8 +210,8 @@ def _mitigate_iir_filter_artefact(group1, group2):
 def _get_spm_clusters(spm_ti, t):
     """Returns information describing an SPM inference object's clusters.
 
-    Returns a list of SpmCluster namedtuples summarizing the supra-threshold
-    clusters in the SPM inference object `spm_ti`.
+    Returns a list of dicts summarizing the supra-threshold clusters in the SPM
+    inference object `spm_ti`.
 
     Parameters
     ----------
@@ -225,10 +226,9 @@ def _get_spm_clusters(spm_ti, t):
     Returns
     -------
     clusters : list
-        A list of SpmCluster namedtuples summarizing the supra-threshold
-        clusters in `spm_ti`, or an empty list if the inference did not produce
-        and clusters. See `get_spm_t_inference` for documentation of SpmCluster
-        fields.
+        A list of dicts summarizing the supra-threshold clusters in `spm_ti`,
+        or an empty list if the inference did not produce and clusters. See
+        `get_spm_t_inference` for documentation of the dicts' keys.
         
     """
     # See _get_params_of_spm_cluster in frontiers/src/spm_analysis.py
@@ -242,7 +242,7 @@ def _get_spm_clusters(spm_ti, t):
 
 
 def _analyze_spm1d_cluster(cluster, t, idx):
-    """Returns an SpmCluster namedtuple summarizing an SPM Cluster object.
+    """Returns a dict summarizing an SPM Cluster object.
 
     Parameters
     ----------
@@ -258,10 +258,9 @@ def _analyze_spm1d_cluster(cluster, t, idx):
 
     Returns
     ----------
-    cluster : SpmCluster
-        An SpmCluster namedtuple summarizing the inputted
-        spm1d._clusters.Cluster object. See `get_spm_t_inference` for
-        documentation of SpmCluster fields.
+    cluster : dict
+        A dict summarizing the inputted spm1d._clusters.Cluster object. See
+        `get_spm_t_inference` for documentation of the dict's keys.
         
     """
     start_idx, end_idx = cluster.endpoints
@@ -289,9 +288,14 @@ def _analyze_spm1d_cluster(cluster, t, idx):
     centroid_time = _idx_to_time(centroid_idx, t)
     extremum_time = _idx_to_time(extremum_idx, t)
 
-    return NamedTupleTypes.SpmCluster(idx=idx, p=cluster.P, start_time=start_time,
-                                      end_time=end_time,
-                                      centroid_time=centroid_time,
-                                      centroid=centroid,
-                                      extremum_time=extremum_time,
-                                      extremum=extremum, area=cluster_area)
+    return {
+      'idx': idx,
+      'p': cluster.P,
+      'start_time': start_time,
+      'end_time': end_time,
+      'centroid_time': centroid_time,
+      'centroid': centroid,
+      'extremum_time': extremum_time,
+      'extremum': extremum,
+      'area': cluster_area,
+    }

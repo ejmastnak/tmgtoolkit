@@ -1,12 +1,11 @@
 import sys
 import math
-from collections import namedtuple
 import numpy as np
 from scipy.signal import find_peaks
 from scipy.stats import ttest_rel
 from scipy.interpolate import lagrange
 
-from .constants import TimeSeriesConstants, NamedTupleTypes
+from .constants import TimeSeriesConstants
 
 def get_tmg_parameters_of_time_series(y, t=None,
                                       ignore_maxima_with_idx_less_than=None,
@@ -15,8 +14,8 @@ def get_tmg_parameters_of_time_series(y, t=None,
                                       interpolate_dm=False):
     """Returns TMG parameters for a time series.
 
-    Returns a TmgParams namedtuple holding the TMG parameters Dm, Td, Tc, Ts,
-    and Tr for the inputted time series `y`.
+    Returns a dict holding the TMG parameters Dm, Td, Tc, Ts, and Tr for the
+    inputted time series `y`.
 
     Parameters
     ----------
@@ -68,16 +67,15 @@ def get_tmg_parameters_of_time_series(y, t=None,
 
     Returns
     -------
-    params : TmgParams
-        A TmgParams namedtuple holding the computed TMG parameter values. The
-        TmgParams namedtuple has the following fields:
+    params : dict
+        A dict holding the computed TMG parameter values. The dict has the
+        following keys:
         - `dm` (float): value of Dm, in the same units as `y`.
         - `tm` (float): time of Dm, in the same units as `t`.
         - `td` (float): value of Td, in the same units as `t`.
         - `tc` (float): value of Tc, in the same units as `t`.
         - `ts` (float): value of Ts, in the same units as `t`.
         - `tr` (float): value of Tr, in the same units as `t`.
-        Access fields with e.g. `params.dm` for value of `dm`.
     """
     if ignore_maxima_with_idx_less_than is None:
         ignore_maxima_with_idx_less_than = TimeSeriesConstants.TMG_PARAMS['ignore_maxima_with_idx_less_than']
@@ -110,7 +108,14 @@ def get_tmg_parameters_of_time_series(y, t=None,
     ts = t50_right - t50_left
     tr = t50_right - t90_right
 
-    return NamedTupleTypes.TmgParams(dm=dm, tm=tm, td=td, tc=tc, ts=ts, tr=tr)
+    return {
+      'dm': dm,
+      'tm': tm,
+      'td': td,
+      'tc': tc,
+      'ts': ts,
+      'tr': tr,
+    }
 
 
 def get_derivative_of_time_series(y, t=None):
@@ -148,9 +153,8 @@ def get_derivative_of_time_series(y, t=None):
 def get_extremum_parameters_of_time_series(y, t=None):
     """Returns extremum parameters of a time series.
 
-    Returns a TmgExtremumParams namedtuple holding the maximum value, time of
-    maximum value, minimum value, and time of minimum value of the inputted
-    time series `y`.
+    Returns a dict holding the maximum value, time of maximum value, minimum
+    value, and time of minimum value of the inputted time series `y`.
 
     Parameters
     ----------
@@ -169,9 +173,9 @@ def get_extremum_parameters_of_time_series(y, t=None):
 
     Returns
     -------
-    params : TmgExtremumParams
-        A TmgExtremumParams namedtuple holding the computed parameter values.
-        The TmgExtremumParams namedtuple has the following fields:
+    params : dict
+        A dict holding the computed parameter values. The dict has the
+        following keys:
         - `max` (float): maximum value of `y`, in the same units as `y`.
         - `max_time` (float): time at which `max` occurs, in the same units as
               `t`. If `y` has multiple equal maximum values, the time of the
@@ -180,7 +184,6 @@ def get_extremum_parameters_of_time_series(y, t=None):
         - `min_time` (float): time at which `min` occurs, in the same units as
               `t`. If `y` has multiple equal minimum values, the time of the
               first minimum value is used.
-        Access fields with e.g. `params.max` for the value of `max`.
         
         Note: the extremum values and their times are computed by interpolating
         `y` and `t`, and in general the maximum and minimum values will fall
@@ -220,7 +223,12 @@ def get_extremum_parameters_of_time_series(y, t=None):
     max_time = _idx_to_time(max_idx, t)
     min_time = _idx_to_time(min_idx, t)
 
-    return NamedTupleTypes.ExtremumParams(max_time=max_time, max=max, min_time=min_time, min=min)
+    return {
+            'max_time': max_time,
+            'max': max,
+            'min_time': min_time,
+            'min': min
+    }
 
 
 def _get_dm_idx_and_value(y, ignore_maxima_with_idx_less_than,

@@ -78,18 +78,18 @@ def plot_spm_t_statistic(ax, spm_ts, spm_ti, t=None, **kwargs):
     ----------
     ax : matplotlib.axes._axes.Axes
         Matplotlib axis object on which to plot
-    spm_ts : SpmTStatistic
-        A SpmTStatistic namedtuple, as returned by `spm.get_spm_t_statistic()`,
+    spm_ts : dict
+        A SpmTStatistic dict, as returned by `spm.get_spm_t_statistic()`,
         holding the SPM t-test statistic curve to be plotted.
-    spm_ti : SpmTInference
-        A SpmTInference namedtuple produced by performing inference on
+    spm_ti : dict
+        A SpmTInference dict produced by performing inference on
         `spm_ts` using the function `spm.get_spm_t_inference()`.
     t : ndarray, optional
         1D Numpy array holding the time (or other independent variable) values
-        on which the SPM t-statistic curve `spm_ts.t_statistic` is
+        on which the SPM t-statistic curve `spm_ts['t_statistic']` is
         defined. If provided, `t` must be a 1N Numpy array with the same number
         of points as the t-statistic curve. If not provided, this function will
-        use index values of `spm_ts.t_statistic` as the independent
+        use index values of `spm_ts['t_statistic']` as the independent
         variable.
 
     Keyword Arguments
@@ -126,8 +126,8 @@ def plot_spm_t_statistic(ax, spm_ts, spm_ti, t=None, **kwargs):
 
     _remove_spines(ax)
 
-    spmt = spm_ts.t_statistic
-    threshold = spm_ti.threshold
+    spmt = spm_ts['t_statistic']
+    threshold = spm_ti['threshold']
 
     # Plot t-statistic
     ax.plot(t, spmt, color=kwargs.get('color'),
@@ -153,9 +153,9 @@ def plot_spm_t_statistic(ax, spm_ts, spm_ti, t=None, **kwargs):
             interpolate=True, color=fill_color)
 
     # Text box showing SPM cluster parameters
-    best_cluster = None if len(spm_ti.clusters) == 0 else spm_ti.clusters[_choose_cluster_to_display(spm_ti.clusters)]
+    best_cluster = None if len(spm_ti['clusters']) == 0 else spm_ti['clusters'][_choose_cluster_to_display(spm_ti['clusters'])]
     ax.text(PlottingConstants.SPM_STATISTIC_DEFAULTS['textbox_x'], PlottingConstants.SPM_STATISTIC_DEFAULTS['textbox_y'],
-            _get_spm_axis_text(spm_ti.alpha, spm_ti.threshold, best_cluster),
+            _get_spm_axis_text(spm_ti['alpha'], spm_ti['threshold'], best_cluster),
             va='top', ha='left',
             transform=ax.transAxes,
             bbox=dict(facecolor=PlottingConstants.SPM_STATISTIC_DEFAULTS['textbox_facecolor'],
@@ -236,7 +236,6 @@ def plot_spm_input_data(ax, group1, group2, t=None, **kwargs):
     std1 = np.std(group1, ddof=1, axis=1)
     std2 = np.std(group2, ddof=1, axis=1)
 
-
     color1 = kwargs.get('color1', PlottingConstants.SPM_INPUT_DATA_DEFAULTS['color1'])
     color2 = kwargs.get('color2', PlottingConstants.SPM_INPUT_DATA_DEFAULTS['color2'])
     fillcolor1 = kwargs.get('fillcolor1', PlottingConstants.SPM_INPUT_DATA_DEFAULTS['color1'])
@@ -282,20 +281,20 @@ def _choose_cluster_to_display(clusters):
     Parameters
     ----------
     clusters : list
-        List of SpmCluster namedtuples.
+        List of SpmCluster dicts.
 
     Returns
     -------
     idx : int
-        Indext of the cluster in `clusters` to display.
+        Index of the cluster in `clusters` to display.
 
     """
     idx = 0
     for (i, cluster) in enumerate(clusters):
-        if cluster.p < clusters[idx].p:
+        if cluster['p'] < clusters[idx]['p']:
             idx = i
-        elif math.isclose(cluster.p, clusters[idx].p):
-            if cluster.area > clusters[idx].area:
+        elif math.isclose(cluster['p'], clusters[idx]['p']):
+            if cluster['area'] > clusters[idx]['area']:
                 idx = i
     return idx
 
@@ -317,8 +316,8 @@ def _get_spm_axis_text(alpha, threshold, cluster):
         alpha value used for SPM inference.
     threshold : float
         t-statistic significance threshold produced by SPM inference.
-    cluster : SpmCluster
-        An SpmCluster named tuple whose parameters to display; this should be
+    cluster : dict
+        An SpmCluster dict whose parameters to display; this should be
         the "most significant" cluster produced by SPM inference.
 
     """
@@ -328,12 +327,12 @@ def _get_spm_axis_text(alpha, threshold, cluster):
         return "$\\alpha = {:.2f}$\n$t^* = {:.2f}$".format(threshold, alpha)
 
     # Parameters for cluster with smallest p-value
-    p             = cluster.p
-    start_time    = cluster.start_time
-    end_time      = cluster.end_time
-    extremum_time = cluster.extremum_time
-    extremum      = cluster.extremum
-    area          = cluster.area
+    p             = cluster['p']
+    start_time    = cluster['start_time']
+    end_time      = cluster['end_time']
+    extremum_time = cluster['extremum_time']
+    extremum      = cluster['extremum']
+    area          = cluster['area']
 
     # The if/else block ensures p-value is written in nicely-readable
     # scientific notation.

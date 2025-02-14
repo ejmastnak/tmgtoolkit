@@ -1,5 +1,4 @@
 from pathlib import Path
-from collections import namedtuple
 
 class IoConstants:
     TMG_EXCEL_MAGIC_VALUES = {
@@ -139,40 +138,3 @@ class PlottingConstants:
             'x_axis_linestyle': ':',
             'legend_alpha': 1.0,
             }
-
-class NamedTupleTypes:
-    TmgParams = namedtuple('TmgParams', [
-        'dm',
-        'tm',
-        'td',
-        'tc',
-        'ts',
-        'tr'
-        ])
-    ExtremumParams = namedtuple('ExtremumParams', [
-        'max_time',
-        'max',
-        'min_time',
-        'min'
-        ])
-    SpmTStatistic = namedtuple('SpmTStatistic', [
-        't_statistic',
-        'spm_t'
-        ])
-    SpmTInference = namedtuple('SpmTInference', [
-        'alpha',
-        'p',
-        'threshold',
-        'clusters'
-        ])
-    SpmCluster = namedtuple('SpmCluster', [
-        'idx',
-        'p',
-        'start_time',
-        'end_time',
-        'centroid_time',
-        'centroid',
-        'extremum_time',
-        'extremum',
-        'area'
-        ])

@@ -12,7 +12,7 @@ from .constants import IoConstants
 def tmg_excel_to_ndarray(fname, skiprows=None, nrows=None, skipcols=None, ncols=None):
     """Extracts information in a TMG measurement Excel file.
 
-    Returns a TmgExcel namedtuple holding the information in a standard-format
+    Returns a TmgExcel dict holding the information in a standard-format
     TMG measurement Excel file, as produced by the official TMG measurement
     software distributed with the TMG S1 and S2 measurement systems.
 
@@ -23,15 +23,13 @@ def tmg_excel_to_ndarray(fname, skiprows=None, nrows=None, skipcols=None, ncols=
 
     Returns
     -------
-    excel : TmgExcel
-        A TmgExcel namedtuple holding the data in the Excel file. The TmgExcel
-        namedtuple has the following fields:
-        - `data` (ndarray): 2D Numpy array holding the TMG signals in the
-              inputted Excel file. Measurements are stored in columns, so that
-              `data` has shape `(rows, cols)`, where `rows` is the number of
-              data points in each TMG measurement and `cols` is the number of
-              measurements in the Excel file. Typically `rows` will be 1000,
-              since a standard TMG signal is sampled for 1000 ms at 1 kHz.
+    data : ndarray
+        2D Numpy array holding the TMG signals in the
+        inputted Excel file. Measurements are stored in columns, so that
+        `data` has shape `(rows, cols)`, where `rows` is the number of
+        data points in each TMG measurement and `cols` is the number of
+        measurements in the Excel file. Typically `rows` will be 1000,
+        since a standard TMG signal is sampled for 1000 ms at 1 kHz.
     """
     if skiprows is None:
         skiprows = IoConstants.TMG_EXCEL_MAGIC_VALUES['data_start_row_idx']
@@ -41,7 +39,7 @@ def tmg_excel_to_ndarray(fname, skiprows=None, nrows=None, skipcols=None, ncols=
         skipcols = IoConstants.TMG_EXCEL_MAGIC_VALUES['data_start_col_idx']
 
     usecols = lambda col: col >= skipcols and ((col < (ncols + skipcols)) if ncols is not None else True)
-    return pd.read_excel(fname, header=None, skiprows=skiprows, nrows=nrows, usecols=usecols).values
+    return pd.read_excel(fname, engine='openpyxl', header=None, skiprows=skiprows, nrows=nrows, usecols=usecols).values
 
 
 def split_data_for_spm(data, numsets, n1, n2, split_mode, skiprows=0, nrows=None, equalize_columns=True):
